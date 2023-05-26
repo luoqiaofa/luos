@@ -1,0 +1,2 @@
+core-y += kernel/
+
