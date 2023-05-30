@@ -19,9 +19,7 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
-#include "taskLib.h"
+#include "coreLib.h"
 
 void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
 {

@@ -19,8 +19,8 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
+#include "coreLib.h"
+
 LOCAL int cpuTimerRate = CONFIG_HZ;
 int sysClkRateGet(void)
 {
