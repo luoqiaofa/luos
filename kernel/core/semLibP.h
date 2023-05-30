@@ -78,6 +78,11 @@ STATUS semFlush(SEM_ID id);
 STATUS semGiveDefer(SEM_ID id);
 STATUS semFlushDefer(SEM_ID id);
 
+STATUS semMGive(SEM_ID semId);
+STATUS semMTake(SEM_ID semId, int timeout);
+STATUS semBGive(SEM_ID semId);
+STATUS semBTake(SEM_ID semId, int timeout);
+
 #endif /* #ifndef __SEMLIBP_H__ */
 
 

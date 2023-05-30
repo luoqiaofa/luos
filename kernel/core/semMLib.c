@@ -19,29 +19,26 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include "semLibP.h"
+#include "coreLib.h"
 
 LOCAL BOOL semMinLibInstalled = false;
 
 STATUS semMLibInit()
 {
     SEM_OPS semCountOps = {
-        .psemGive       = (semGive_t)semMGive;
-        .psemTake       = (semGive_t)semMTake;
-        .psemFlush      = (semGive_t)semFlush;
-        .psemGiveDefer  = (semGive_t)semGiveDefer;
-        .psemFlushDefer = (semGive_t)semFlushDefer;
+        .psemGive       = (semGive_t)semMGive,
+        .psemTake       = (semTake_t)semMTake,
+        .psemFlush      = (semFlush_t)semFlush,
+        .psemGiveDefer  = (semGiveDefer_t)semGiveDefer,
+        .psemFlushDefer = (semFlushDefer_t)semFlushDefer
     };
     semTypeInit(SEM_TYPE_MUTEX, &semCountOps);
     semMinLibInstalled = true;
     return OK;
 }
 
-SEM_ID semMInit(SEM_ID semId, int options)
+STATUS semMInit(SEM_ID semId, int options)
 {
-    if (SEM_EMPTY != initialState && SEM_FULL != initialState) {
-        return ERROR;
-    }
     memset(semId, 0, sizeof(*semId));
     semId->semType  = SEM_TYPE_MUTEX;
     semId->options  = options;
@@ -55,9 +52,10 @@ SEM_ID semMCreate(int options)
 
     semId = osMemAlloc(sizeof(*semId));
     if (NULL == semId) {
-        return ERROR;
+        return NULL;
     }
-    return semMInit(semId, options);
+    semMInit(semId, options);
+    return semId;
 }
 
 STATUS semMGive(SEM_ID semId)
@@ -81,7 +79,7 @@ STATUS semMGive(SEM_ID semId)
             if (semId->oriPriority != tcb->priority) {
                 newpri = semId->oriPriority;
                 intUnlock(level);
-                return taskPrioritySet(tcb, semId->oriPriority);
+                return taskPrioritySet((tid_t)tcb, semId->oriPriority);
             }
             if (taskPendQueGet(tcb, semId)) {
                 coreTrySchedule();
@@ -111,7 +109,7 @@ STATUS semMTake(SEM_ID semId, int timeout)
     level = intLock();
     tcb = currentTask();
     if (NULL == semId->semOwner) {
-        semId->oriPriority = tcp->priority;
+        semId->oriPriority = tcb->priority;
         semId->semOwner = tcb;
         semId->recurse++;
         intUnlock(level);
@@ -153,7 +151,7 @@ STATUS semMTake(SEM_ID semId, int timeout)
         newpri = tcb->priority;
         tcb = semId->semOwner;
         intUnlock(level);
-        return taskPrioritySet(tcb, newpri);
+        return taskPrioritySet((tid_t)tcb, newpri);
     } else {
         coreTrySchedule();
         intUnlock(level);

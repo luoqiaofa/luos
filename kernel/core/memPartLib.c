@@ -19,9 +19,8 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
 #include "memPartLib.h"
+#include "coreLib.h"
 
 static BOOL memPartLibInstalled = false;
 static MEM_PART sysMemAllocHeap;
@@ -45,6 +44,7 @@ STATUS memPartLibInit()
 
 STATUS memPartInit(PART_ID partId, char *mem_pool, size_t size, size_t blksize) 
 {
+    unsigned long int uintptr;
     if (NULL == partId || NULL == mem_pool) {
         return -1;
     }
@@ -55,7 +55,11 @@ STATUS memPartInit(PART_ID partId, char *mem_pool, size_t size, size_t blksize)
     partId->totalSize  = size;
     partId->memBase    = mem_pool;
     partId->blkMinSize = blksize;
-    partId->freeBase   = (mem_pool + sizeof(MEM_BLK) - 1) & (~(sizeof(MEM_BLK) - 1));
+    partId->freeBase   = mem_pool;
+    uintptr = (unsigned long int)mem_pool;
+    uintptr += sizeof(MEM_BLK) - 1;
+    uintptr &= (~(sizeof(MEM_BLK) - 1));
+    partId->freeBase   = (void *)uintptr;
     partId->freeSize   = size - (size_t)(partId->freeBase - partId->memBase);
     return 0;
 }
@@ -154,7 +158,7 @@ STATUS memPartFree(PART_ID partId, void* pBlk)
             partId->freeSize += sizeof(MEM_BLK) + blk->totalSize;
             partId->freeListSize -= blk2->totalSize;
         } else {
-            list_add_tail(node, partId->freeListHdr);
+            list_add_tail(node, &partId->freeListHdr);
             partId->freeListSize += blk->totalSize;
         }
     } else {

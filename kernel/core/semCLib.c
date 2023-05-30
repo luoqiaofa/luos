@@ -19,34 +19,31 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
-#include "semLib.h"
+#include "coreLib.h"
 
 LOCAL BOOL semCountLibInstalled = false;
 
 STATUS semCLibInit()
 {
     SEM_OPS semCountOps = {
-        .psemGive       = (semGive_t)semCGive;
-        .psemTake       = (semGive_t)semCTake;
-        .psemFlush      = (semGive_t)semFlush;
-        .psemGiveDefer  = (semGive_t)semGiveDefer;
-        .psemFlushDefer = (semGive_t)semFlushDefer;
+        .psemGive       = (semGive_t)semCGive,
+        .psemTake       = (semTake_t)semCTake,
+        .psemFlush      = (semGive_t)semFlush,
+        .psemGiveDefer  = (semGive_t)semGiveDefer,
+        .psemFlushDefer = (semGive_t)semFlushDefer
     };
     semTypeInit(SEM_TYPE_COUNT, &semCountOps);
     semCountLibInstalled = true;
     return OK;
 }
 
-SEM_ID semCInit(SEM_ID semId, int options, int initialCount)
+STATUS semCInit(SEM_ID semId, int options, int initialCount)
 {
     memset(semId, 0, sizeof(*semId));
     semId->semType  = SEM_TYPE_COUNT;
     semId->options  = options;
     semId->semCount = initialCount;
     return semQInit(semId, options);
-    return OK;
 }
 
 SEM_ID semCCreate(int options, int initialCount)
@@ -55,9 +52,10 @@ SEM_ID semCCreate(int options, int initialCount)
 
     semId = osMemAlloc(sizeof(*semId));
     if (NULL == semId) {
-        return ERROR;
+        return NULL;
     }
-    return semCInit(semId, options, initialCount);
+    semCInit(semId, options, initialCount);
+    return semId;
 }
 
 STATUS semCGive(SEM_ID semId)

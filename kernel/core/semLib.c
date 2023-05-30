@@ -19,11 +19,7 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
-#include "taskLib.h"
-#include "taskLibP.h"
-#include "semLibP.h"
+#include "coreLib.h"
 
 LOCAL struct sem_ops semOpsTbl[8];
 LOCAL BOOL semLibInstalled = false;
@@ -36,8 +32,8 @@ STATUS semLibInit()
         memset(semOpsTbl, 0, sizeof(semOpsTbl));
         for (idx = 0; idx = ARRAY_SIZE(semOpsTbl); idx++) {
             semOpsTbl[idx].psemGive       = (semGive_t)semInvalid;
-            semOpsTbl[idx].psemTake       = (semGive_t)semInvalid;
-            semOpsTbl[idx].psemFlush      = (semGive_t)semInvalid;
+            semOpsTbl[idx].psemTake       = (semTake_t)semInvalid;
+            semOpsTbl[idx].psemFlush      = (semFlush_t)semInvalid;
             semOpsTbl[idx].psemGiveDefer  = (semGive_t)semInvalid;
             semOpsTbl[idx].psemFlushDefer = (semGive_t)semInvalid;
         }

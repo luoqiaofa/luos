@@ -19,7 +19,8 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include "taskLib.h"
+#include "coreLib.h"
+
 LOCAL LUOS_INFO * osInfo = &__osinfo__;
 LOCAL BOOL taskLibInstalled = false;
 extern void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn);
@@ -49,7 +50,7 @@ tid_t taskCreate(char *name, int priority, int options, int stackSize,
     ULONG ulPtr;
 
     if (!taskLibInstalled) {
-        return NULL;
+        return (tid_t)NULL;
     }
     stackSize = STACK_ROUND_UP(stackSize);
     sz = stackSize + sizeof(LUOS_TCB);
@@ -57,7 +58,7 @@ tid_t taskCreate(char *name, int priority, int options, int stackSize,
 
     p1 = osMemAlloc(sz);
     if (NULL == p1) {
-        return NULL;
+        return (tid_t)NULL;
     }
 #ifdef CONFIG_STACK_GROWSUP
     tcb = (LUOS_TCB *)p1;
@@ -77,7 +78,7 @@ tid_t taskCreate(char *name, int priority, int options, int stackSize,
             osMemFree(tcb->name);
         }
         osMemFree(p1);
-        return NULL;
+        return (tid_t)NULL;
     }
     return (tid_t)tcb;
 }
@@ -169,7 +170,7 @@ tid_t taskSpawn(char *name, int priority, int options, int stackSize,
 {
     LUOS_TCB* tcb;
 
-    tcb = (tid_t)taskCreate(name, priority, options, stackSize, taskEntry, arg);
+    tcb = (LUOS_TCB *)taskCreate(name, priority, options, stackSize, taskEntry, arg);
     if (NULL == tcb) {
         return (tid_t)0;
     }
@@ -241,11 +242,11 @@ STATUS taskDelete(tid_t tid)
     ULONG priority;
     PriInfo_t *pri;
 
-    tcb = (LUOS_TCB *)tid_t;
+    tcb = (LUOS_TCB *)tid;
     if (0 == tid) {
         tcb = currentTask();
     }
-    tcb = (LUOS_TCB)tid;
+    tcb = (LUOS_TCB *)tid;
     pri = osInfo->priInfoTbl + tcb->priority;
     list_del(&tcb->qOsSched);
     INIT_LIST_HEAD(&tcb->qOsSched);
@@ -274,7 +275,7 @@ STATUS taskSuspend(tid_t tid)
     ULONG priority;
     PriInfo_t *pri;
     
-    tcb = (LUOS_TCB)tid;
+    tcb = (LUOS_TCB *)tid;
     pri = osInfo->priInfoTbl + tcb->priority;
     list_del(&tcb->qOsSched);
     INIT_LIST_HEAD(&tcb->qOsSched);
@@ -298,9 +299,9 @@ STATUS taskResume(tid_t tid)
     ULONG priority;
     PriInfo_t *pri;
     
-    tcb = (LUOS_TCB)tid;
+    tcb = (LUOS_TCB *)tid;
     pri = osInfo->priInfoTbl + tcb->priority;
-    list_add_tail(&tcb->qNodeReady, &pri->qReadyHead);
+    list_add_tail(&tcb->qOsSched, &pri->qReadyHead);
     pri->numTask++;
     grp = tcb->priority / BITS_PER_LONG;
     off = tcb->priority % BITS_PER_LONG;
@@ -320,7 +321,7 @@ STATUS taskRestart(tid_t tid)
     ULONG priority;
     PriInfo_t *pri;
 
-    tcb = (LUOS_TCB *)tid_t;
+    tcb = (LUOS_TCB *)tid;
     if (0 == tid) {
         tcb = currentTask();
     }
@@ -403,7 +404,6 @@ STATUS taskPriorityGet(tid_t tid, int *pPriority)
 STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId) 
 {
     TCB_ID tcb1;
-    SEM_ID semId;
     TLIST *node;
 
     if (SEM_Q_FIFO == (semId->options & SEM_Q_MASK)) {
@@ -433,7 +433,6 @@ STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
 BOOL taskPendQueGet(TCB_ID tcb, SEM_ID semId) 
 {
     TCB_ID tcb1;
-    SEM_ID semId;
     TLIST *node;
     ULONG grp;
     ULONG off;
@@ -459,17 +458,16 @@ BOOL taskPendQueGet(TCB_ID tcb, SEM_ID semId)
             tcb1->sliceTicksCnt = 0;
         }
         list_add_tail(&tcb1->qOsSched, &pri->qReadyHead);
- 
         if (tcb1->priority < tcb->priority) {
-            switch(semId->semType) {
+            switch (semId->semType) {
                 case SEM_TYPE_MUTEX :
                 case SEM_TYPE_BINARY:
                     semId->semOwner = tcb1;
                     break;
                 default:
-                    break
+                    break;
             }
-            return true
+            return true;
         }
     }
     return false;

@@ -19,25 +19,25 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include "semLibP.h"
+#include "coreLib.h"
 
 LOCAL BOOL semBinLibInstalled = false;
 
 STATUS semBLibInit()
 {
     SEM_OPS semCountOps = {
-        .psemGive       = (semGive_t)semBGive;
-        .psemTake       = (semGive_t)semBTake;
-        .psemFlush      = (semGive_t)semFlush;
-        .psemGiveDefer  = (semGive_t)semGiveDefer;
-        .psemFlushDefer = (semGive_t)semFlushDefer;
+        .psemGive       = (semGive_t)semBGive,
+        .psemTake       = (semTake_t)semBTake,
+        .psemFlush      = (semGive_t)semFlush,
+        .psemGiveDefer  = (semGive_t)semGiveDefer,
+        .psemFlushDefer = (semGive_t)semFlushDefer,
     };
     semTypeInit(SEM_TYPE_BINARY, &semCountOps);
     semBinLibInstalled = true;
     return OK;
 }
 
-SEM_ID semBInit(SEM_ID semId, int options, SEM_B_STATE initialState)
+STATUS semBInit(SEM_ID semId, int options, SEM_B_STATE initialState)
 {
     if (SEM_EMPTY != initialState && SEM_FULL != initialState) {
         return ERROR;
@@ -54,14 +54,15 @@ SEM_ID semBCreate(int options, SEM_B_STATE initialState)
     SEM_ID semId;
 
     if (SEM_EMPTY != initialState && SEM_FULL != initialState) {
-        return ERROR;
+        return NULL;
     }
 
     semId = osMemAlloc(sizeof(*semId));
     if (NULL == semId) {
-        return ERROR;
+        return NULL;
     }
-    return semBInit(semId, options, initialState);
+    semBInit(semId, options, initialState);
+    return semId;
 }
 
 STATUS semBGive(SEM_ID semId)
@@ -72,7 +73,7 @@ STATUS semBGive(SEM_ID semId)
     if (NULL == semId || semId->semType != SEM_TYPE_BINARY) {
         return ERROR;
     }
-    if (SEM_EMPTY != semId->recurse && SEM_FULL != sem->recurse) {
+    if (SEM_EMPTY != semId->recurse && SEM_FULL != semId->recurse) {
         return ERROR;
     }
     
@@ -107,7 +108,7 @@ STATUS semBTake(SEM_ID semId, int timeout)
     TLIST *node;
     LUOS_INFO *osInfo = osCoreInfo();
 
-    if (SEM_EMPTY != semId->recurse && SEM_FULL != sem->recurse) {
+    if (SEM_EMPTY != semId->recurse && SEM_FULL != semId->recurse) {
         return ERROR;
     }
     if (timeout < WAIT_FOREVER) {
