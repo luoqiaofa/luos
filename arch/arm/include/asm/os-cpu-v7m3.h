@@ -70,9 +70,8 @@ typedef struct coretex_v7m3_regs {
     cpureg_t      CONTROL;
 } REG_SET;
 
-extern void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn);
-IMPORT int intLock(void);
-IMPORT int intUnlock(int oldSR);
+extern int intLock(void);
+extern int intUnlock(int oldSR);
 #endif /* #ifndef __REGSARM_H__ */
 
 

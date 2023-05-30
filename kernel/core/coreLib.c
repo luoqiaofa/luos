@@ -19,13 +19,13 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
+#include "coreLib.h"
 
 #ifndef CONFIG_TASK_MEM_POOL_SIZE
 #define CONFIG_TASK_MEM_POOL_SIZE (30*1024)
 #endif
 
+LUOS_INFO __osinfo__;
 
 LOCAL MEM_BLK  osMemPool[CONFIG_TASK_MEM_POOL_SIZE/sizeof(MEM_BLK)];
 LOCAL MEM_PART osMemPart;
@@ -48,7 +48,7 @@ STATUS coreLibInit()
 
     osMemPartId = &osMemPart;
     memset(osMemPartId, 0, sizeof(*osMemPartId));
-    rc = memPartInit(osMemPartId, size, blksize);
+    rc = memPartInit(osMemPartId, mem_pool, size, blksize);
     if (0 == rc) {
         coreLibInstalled = true;
     }
@@ -61,7 +61,7 @@ STATUS coreLibInit()
     INIT_LIST_HEAD(&pInfo->qDelayHead);
     INIT_LIST_HEAD(&pInfo->qPendHead);
     for (idx = 0; idx < CONFIG_NUM_PRIORITY; idx++) {
-        pri = pInfo->priReadyTbl + idx;
+        pri = pInfo->priInfoTbl + idx;
         pri->schedPolicy = SCHED_RR;
         pri->sliceTicks  = pInfo->sliceTicks;
         INIT_LIST_HEAD(&pri->qReadyHead);
@@ -90,23 +90,24 @@ STATUS coreTickDoing()
     STATUS rc;
     int idx;
     TLIST *node, *node_del;
-    LUOS_INFO *pInfo;
+    LUOS_INFO *osInfo;
     PriInfo_t *pri;
     LUOS_TCB *tcb;
     ULONG grp;
     ULONG off;
 
     node_del = NULL;
+    osInfo = &__osinfo__;
     list_for_each(node, &osInfo->qDelayHead) {
         if (NULL != node_del) {
             list_del(node_del);
-            tcb = list_entry(node_del, LUOS_TCB, qNodeDelay); 
-            pri = osInfo->readyPriTbl + tcb->priority;
-            list_add_tail(node_del, pri->qReadyHead);
+            tcb = list_entry(node_del, LUOS_TCB, qOsSched); 
+            pri = osInfo->priInfoTbl + tcb->priority;
+            list_add_tail(node_del, &pri->qReadyHead);
             pri->numTask++;
             node_del = NULL;
         }
-        tcb = list_entry(node, LUOS_TCB, qNodeDelay); 
+        tcb = list_entry(node, LUOS_TCB, qOsSched); 
         if (tcb->dlyTicks > 0) {
             tcb->dlyTicks--;
             if (0 == tcb->dlyTicks) {
@@ -125,14 +126,14 @@ STATUS coreTickDoing()
     }
     if (NULL != node_del) {
         list_del(node_del);
-        tcb = list_entry(node_del, LUOS_TCB, qNodeDelay); 
-        pri = osInfo->readyPriTbl + tcb->priority;
-        list_add_tail(node_del, pri->qReadyHead);
+        tcb = list_entry(node_del, LUOS_TCB, qOsSched); 
+        pri = osInfo->priInfoTbl + tcb->priority;
+        list_add_tail(node_del, &pri->qReadyHead);
         pri->numTask++;
         node_del = NULL;
     }
     tcb = currentTask();
-    pri = osInfo->priReadyTbl + tcb->priority;
+    pri = osInfo->priInfoTbl + tcb->priority;
     if (SCHED_RR == pri->schedPolicy) {
         if (tcb->sliceTicksCnt < pri->sliceTicks) {
             tcb->sliceTicksCnt++;
@@ -142,8 +143,8 @@ STATUS coreTickDoing()
         if (pri->numTask > 1) {
             if (SCHED_RR == pri->schedPolicy) {
                 if (tcb->sliceTicksCnt >= pri->sliceTicks) {
-                    list_del(&tcb->qNodeReady);
-                    list_add_tail(&tcb->qNodeReady, pri->qReadyHead);
+                    list_del(&tcb->qOsSched);
+                    list_add_tail(&tcb->qOsSched, &pri->qReadyHead);
                     tcb->sliceTicksCnt = 0;
                 }
             } /* SCHED_RR == pri->schedPolicy */
@@ -162,9 +163,9 @@ void coreTrySchedule()
     ULONG grp = cpuCntLeadZeros(osInfo->readyPriGrp);
     ULONG off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
     ULONG priority = grp * BITS_PER_LONG + off;
-    PriInfo_t *pri = osInfo->priReadyTbl + priority;
+    PriInfo_t *pri = osInfo->priInfoTbl + priority;
     
-    tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeReady);
+    tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qOsSched);
     if (tcb != currentTask()) {
         /* start scheduled */
 #if 0

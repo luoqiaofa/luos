@@ -18,8 +18,15 @@
 
 #ifndef __OS_TYPES_H__
 #define __OS_TYPES_H__
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <stdarg.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
+#include "autoconf.h"
+#include "linux/list.h"
+#include "asm/types.h"
 
 #define FAST          register
 #define IMPORT        extern
@@ -45,13 +52,16 @@ typedef int           STATUS;
 typedef int           ARGINT;
 typedef void          VOID;
 
-typedef int           (*FUNCPTR) ();        /*  ptr to function returning int */
-typedef void          (*VOIDFUNCPTR) ();    /*  ptr to function returning void */
-typedef double        (*DBLFUNCPTR) ();     /*  ptr to function returning double*/
-typedef float         (*FLTFUNCPTR) ();     /*  ptr to function returning float */
+typedef int           (*FUNCPTR) (void);        /*  ptr to function returning int */
+typedef void          (*VOIDFUNCPTR) (void);    /*  ptr to function returning void */
+typedef double        (*DBLFUNCPTR) (void);     /*  ptr to function returning double*/
+typedef float         (*FLTFUNCPTR) (void);     /*  ptr to function returning float */
 typedef void*         (*START_RTN)(void *arg);
 
 typedef struct list_head TLIST;
+
+#define OK      0
+#define ERROR   (-1)
 
 #endif /* #ifndef __OS_TYPES_H__ */
 

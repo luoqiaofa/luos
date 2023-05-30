@@ -19,6 +19,11 @@
 #ifndef __OSCORE_H__
 #define __OSCORE_H__
 #include "osTypes.h"
+#include "semLib.h"
+#include "taskLib.h"
+#include "taskLibP.h"
+#include "semLib.h"
+#include "memPartLib.h"
 #ifndef CONFIG_NUM_PRIORITY 
 #define CONFIG_NUM_PRIORITY 256 /* 64/256/1024/4096 */
 #endif
@@ -67,23 +72,47 @@ typedef struct priorityInfo {
 typedef struct luosInfo {
     BOOL      osRunning;
     BOOL      schedLocked;
-    volatile  LUOS_TCB* currentTcb;
+    LUOS_TCB* currentTcb;
     uint32_t  sliceTicks;
     TLIST     qDelayHead; 
     TLIST     qPendHead; 
     ULONG     readyPriGrp; 
     ULONG     readyPriTbl[NLONG_PRIORITY];
-    PriInfo_t priReadyTbl[CONFIG_NUM_PRIORITY];
+    PriInfo_t priInfoTbl[CONFIG_NUM_PRIORITY];
     UINT      taskCreatedCnt;     
 } LUOS_INFO;
 
-extern volatile LUOS_INFO __osinfo__;
+extern LUOS_INFO __osinfo__;
 static inline LUOS_TCB* currentTask() {
     return __osinfo__.currentTcb;
 }
 
 static inline LUOS_INFO* osCoreInfo() {
     return &__osinfo__;
+}
+
+static inline int priorityGroup(int priority) {
+    if (BITS_PER_LONG == 32) {
+        return (priority >> 5);
+    } else if (BITS_PER_LONG == 64) {
+        return (priority >> 6);
+    } else if (BITS_PER_LONG == 16) {
+        return (priority >> 4);
+    } else {
+        return (priority >> 3);
+    }
+}
+
+static inline int priorityOffset(int priority) {
+    if (BITS_PER_LONG == 32) {
+        return (priority & (~((1 << 5)-1)));
+    } else if (BITS_PER_LONG == 64) {
+        return (priority & (~((1 << 6)-1)));
+    } else if (BITS_PER_LONG == 16) {
+        return (priority & (~((1 << 4)-1)));
+    } else {
+        return (priority & (~((1 << 3)-1)));
+    }
 }
 
 extern void * osMemAlloc(size_t nbytes);

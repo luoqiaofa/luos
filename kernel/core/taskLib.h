@@ -19,10 +19,11 @@
 #ifndef __TASKLIB_H__
 #define __TASKLIB_H__
 #include "osTypes.h"
+#include "semLib.h"
 #include "coreLib.h"
+#include "taskLib.h"
 #include "memPartLib.h"
 /*  task status values */
-
 #define TASK_READY      0x00    /*  ready to run */
 #define TASK_SUSPEND    0x01    /*  explicitly suspended */
 #define TASK_PEND       0x02    /*  pending on semaphore */
@@ -33,6 +34,7 @@
 typedef struct luosTcb {
     char *    name;
     UINT      status;
+    int32_t   errCode;
     int32_t   priority;
     void *    stack;     /* statck pointer */
     void *    stkBase;   /* statck origin pointer */
@@ -42,30 +44,32 @@ typedef struct luosTcb {
     int32_t   dlyTicks;
     int       options;
     TLIST     memListHdr;  /* mem list header */
-    TLIST     qNodeReady;  /* for ready list */
-    TLIST     qNodeDelay;  /* for delay ticks list */
-    TLIST     qNodePend;   /* for mutex,msgqueue,semphore,suspend cause to be pended. etc */
+    TLIST     qOsSched;    /* for ready, delay queue list */
+    TLIST     qNodePend;       /* for mutex,msgqueue,semphore,suspend cause to be pended. etc */
+    SEM_ID    semIdPended;
     int32_t   priNormal;
     int32_t   priDynamic;
     int32_t   sliceTicksCnt; /* count the ticks for slice */
-    int32_t   firstSchedTs;  /* last scheduled os ticks cnt */
+    cputime_t firstSchedTs;  /* last scheduled os ticks cnt */
     int32_t   latestTick;    /* last scheduled os ticks cnt */
     int32_t   osTicksCnt;    /* counter of scheduled times from last scheduled */
     START_RTN taskEntry;
-    void *   param;
-    UINT     lockCnt;
+    void *    param;
+    UINT      lockCnt;
 } LUOS_TCB;
 
+typedef LUOS_TCB* TCB_ID;
+
 typedef struct taskDesc {
-    char*    name;
-    UINT     status;
-    int32_t  priority;
-    void*    stack;     /* statck pointer */
-    void*    stkBase;   /* statck origin pointer */
-    void*    stkEnd;    /* statck origin pointer */
-    int32_t  stkSize;   /* statck size */   
-    int32_t  stkLimit;
-    int32_t  firstSchedTs;  /* last scheduled os ticks cnt */
+    char*     name;
+    UINT      status;
+    int32_t   priority;
+    void*     stack;     /* statck pointer */
+    void*     stkBase;   /* statck origin pointer */
+    void*     stkEnd;    /* statck origin pointer */
+    int32_t   stkSize;   /* statck size */   
+    int32_t   stkLimit;
+    cputime_t firstSchedTs;  /* last scheduled os ticks cnt */
 } TASK_DESC; 
 
 extern STATUS taskLibInit(void);
@@ -106,6 +110,7 @@ extern void   taskRegsShow(tid_t tid);
 extern void * taskStackAllot(tid_t tid, unsigned nBytes);
 extern void   taskShowInit(void);
 extern STATUS taskShow(tid_t tid, int level);
+
 
 #endif /* #ifndef __TASKLIB_H_ */
 

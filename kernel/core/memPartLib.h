@@ -18,6 +18,9 @@
 
 #ifndef __MEMPARTLIB_H__
 #define __MEMPARTLIB_H__
+
+#include "osTypes.h"
+
 #ifndef CONFIG_MEM_HEAP_SIZE
 #define CONFIG_MEM_HEAP_SIZE    (10 * 1024) /* 10KB size */
 #endif
@@ -53,7 +56,7 @@ typedef struct mem_object {
     uint16_t options;
 } MEM_OBJ;
 
-STATUS memPartLibInit();
+STATUS memPartLibInit(void);
 STATUS memPartInit(PART_ID partId, char *mem_pool, size_t size, size_t blksize);
 /*  memory partition to allocate from
  *  number of bytes to allocate 

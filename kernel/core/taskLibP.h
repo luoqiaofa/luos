@@ -1,31 +1,26 @@
 /*
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
- * 文件名称   : os-cpu-types-v7m3.h
+ * 文件名称   : taskLibP.h
  * 内容摘要   : 
  * 其它说明   : 
  * 版本       : 
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
- * 创建时间   : 2023-05-26 09:10:55 AM
+ * 创建时间   : 2023-05-30 09:40:41 AM
  * 
  * 修改记录1:
- *    修改日期: 2023-05-26
+ *    修改日期: 2023-05-30
  *    版 本 号: 
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
  *    修改内容: 
  * ===========================================================================
  */
 
-#ifndef __OS_CPU_TYPES_V7M3_H__
-#define __OS_CPU_TYPES_V7M3_H__
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
+#ifndef __TASKLIBP_H__
+#define __TASKLIBP_H__
+IMPORT STATUS taskPendQuePut(LUOS_TCB *tcb, SEM_ID semId);
+IMPORT BOOL   taskPendQueGet(LUOS_TCB *tcb, SEM_ID semId);
 
-typedef uint32_t tid_t;
-typedef uint32_t cpureg_t;
-typedef uint32_t cputime_t;
-
-#endif /* #ifndef __OS_CPU_TYPES_V7M3_H__ */
+#endif /* #ifndef __TASKLIBP_H__ */
 
 
