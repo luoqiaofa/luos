@@ -30,6 +30,8 @@
 #define TASK_DELAY      0x04    /*  task delay (or timeout) */
 #define TASK_DEAD       0x08    /*  dead task */
 
+#define TASK_OPT_STK_CHK (1 << 0)
+#define TASK_OPT_Q_FIFO  (1 << 1)
 
 typedef struct luosTcb {
     char *    name;
@@ -44,7 +46,7 @@ typedef struct luosTcb {
     int32_t   dlyTicks;
     int       options;
     TLIST     memListHdr;  /* mem list header */
-    TLIST     qOsSched;    /* for ready, delay queue list */
+    TLIST     qNodeSched;    /* for ready, delay queue list */
     TLIST     qNodePend;       /* for mutex,msgqueue,semphore,suspend cause to be pended. etc */
     SEM_ID    semIdPended;
     int32_t   priNormal;

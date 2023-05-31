@@ -21,7 +21,36 @@
  ******************************************************************************/
 #include "coreLib.h"
 
-LOCAL struct sem_ops semOpsTbl[8];
+LOCAL struct sem_ops semOpsTbl[SEM_TYPE_MAX] = {
+    [SEM_TYPE_BINARY] = {
+        .psemGive       = (semGive_t)semInvalid,
+        .psemTake       = (semTake_t)semInvalid,
+        .psemFlush      = (semFlush_t)semInvalid,
+        .psemGiveDefer  = NULL,
+        .psemFlushDefer = NULL,
+    },
+    [SEM_TYPE_MUTEX]  = {
+        .psemGive       = (semGive_t)semInvalid,
+        .psemTake       = (semTake_t)semInvalid,
+        .psemFlush      = (semFlush_t)semInvalid,
+        .psemGiveDefer  = NULL,
+        .psemFlushDefer = NULL,
+    },
+    [SEM_TYPE_COUNT]  = {
+        .psemGive       = (semGive_t)semInvalid,
+        .psemTake       = (semTake_t)semInvalid,
+        .psemFlush      = (semFlush_t)semInvalid,
+        .psemGiveDefer  = NULL,
+        .psemFlushDefer = NULL,
+    },
+    [SEM_TYPE_FLAGS]  = {
+        .psemGive       = (semGive_t)semInvalid,
+        .psemTake       = (semTake_t)semInvalid,
+        .psemFlush      = (semFlush_t)semInvalid,
+        .psemGiveDefer  = NULL,
+        .psemFlushDefer = NULL,
+    },
+};
 LOCAL BOOL semLibInstalled = false;
 
 STATUS semLibInit()
@@ -29,17 +58,19 @@ STATUS semLibInit()
     int idx;
 
     if (!semLibInstalled) {
+#if 0
         memset(semOpsTbl, 0, sizeof(semOpsTbl));
-        for (idx = 0; idx = ARRAY_SIZE(semOpsTbl); idx++) {
+        for (idx = 0; idx < ARRAY_SIZE(semOpsTbl); idx++) {
             semOpsTbl[idx].psemGive       = (semGive_t)semInvalid;
             semOpsTbl[idx].psemTake       = (semTake_t)semInvalid;
             semOpsTbl[idx].psemFlush      = (semFlush_t)semInvalid;
-            semOpsTbl[idx].psemGiveDefer  = (semGive_t)semInvalid;
-            semOpsTbl[idx].psemFlushDefer = (semGive_t)semInvalid;
+            semOpsTbl[idx].psemGiveDefer  = (semGiveDefer_t)semInvalid;
+            semOpsTbl[idx].psemFlushDefer = (semFlushDefer_t)semInvalid;
         }
+#endif
         semLibInstalled = true;
     }
-    return OK;
+    return semLibInstalled ? OK : ERROR;
 }
 
 STATUS semTypeInit(int semtype, SEM_OPS *ops)
@@ -103,7 +134,10 @@ STATUS semGiveDefer(SEM_ID id)
     if (id->semType >= SEM_TYPE_MAX) {
         return ERROR;
     }
-    return semOpsTbl[id->semType].psemGiveDefer(id);
+    if (NULL != semOpsTbl[id->semType].psemGiveDefer) {
+        return semOpsTbl[id->semType].psemGiveDefer(id);
+    }
+    return ERROR;
 }
 
 STATUS semFlushDefer(SEM_ID id)
@@ -111,7 +145,10 @@ STATUS semFlushDefer(SEM_ID id)
     if (id->semType >= SEM_TYPE_MAX) {
         return ERROR;
     }
-    return semOpsTbl[id->semType].psemFlushDefer(id);
+    if (NULL != semOpsTbl[id->semType].psemFlushDefer) {
+        return semOpsTbl[id->semType].psemFlushDefer(id);
+    }
+    return ERROR;
 }
 
 STATUS semDestroy(SEM_ID semId, BOOL dealloc)

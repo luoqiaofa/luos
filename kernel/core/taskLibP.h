@@ -18,8 +18,9 @@
 
 #ifndef __TASKLIBP_H__
 #define __TASKLIBP_H__
+IMPORT STATUS taskQReadyPut(TCB_ID tcb);
 IMPORT STATUS taskPendQuePut(LUOS_TCB *tcb, SEM_ID semId);
-IMPORT BOOL   taskPendQueGet(LUOS_TCB *tcb, SEM_ID semId);
+IMPORT STATUS taskPendQueGet(LUOS_TCB *tcb, SEM_ID semId);
 
 #endif /* #ifndef __TASKLIBP_H__ */
 

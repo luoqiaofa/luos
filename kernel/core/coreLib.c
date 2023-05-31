@@ -93,21 +93,21 @@ STATUS coreTickDoing()
     LUOS_INFO *osInfo;
     PriInfo_t *pri;
     LUOS_TCB *tcb;
-    ULONG grp;
-    ULONG off;
+    int grp;
+    int off;
 
     node_del = NULL;
     osInfo = &__osinfo__;
     list_for_each(node, &osInfo->qDelayHead) {
         if (NULL != node_del) {
             list_del(node_del);
-            tcb = list_entry(node_del, LUOS_TCB, qOsSched); 
+            tcb = list_entry(node_del, LUOS_TCB, qNodeSched); 
             pri = osInfo->priInfoTbl + tcb->priority;
             list_add_tail(node_del, &pri->qReadyHead);
             pri->numTask++;
             node_del = NULL;
         }
-        tcb = list_entry(node, LUOS_TCB, qOsSched); 
+        tcb = list_entry(node, LUOS_TCB, qNodeSched); 
         if (tcb->dlyTicks > 0) {
             tcb->dlyTicks--;
             if (0 == tcb->dlyTicks) {
@@ -115,7 +115,7 @@ STATUS coreTickDoing()
                 if (TASK_READY == tcb->status) {
                     off = tcb->priority % BITS_PER_LONG;
                     grp = tcb->priority / BITS_PER_LONG;
-                    osInfo->readyPriGrp |= (1 << grp);
+                    osInfo->readyPriGrp      |= (1 << grp);
                     osInfo->readyPriTbl[grp] |= (1 << off);
                     node_del = node;
                 } else {
@@ -126,7 +126,7 @@ STATUS coreTickDoing()
     }
     if (NULL != node_del) {
         list_del(node_del);
-        tcb = list_entry(node_del, LUOS_TCB, qOsSched); 
+        tcb = list_entry(node_del, LUOS_TCB, qNodeSched); 
         pri = osInfo->priInfoTbl + tcb->priority;
         list_add_tail(node_del, &pri->qReadyHead);
         pri->numTask++;
@@ -143,8 +143,8 @@ STATUS coreTickDoing()
         if (pri->numTask > 1) {
             if (SCHED_RR == pri->schedPolicy) {
                 if (tcb->sliceTicksCnt >= pri->sliceTicks) {
-                    list_del(&tcb->qOsSched);
-                    list_add_tail(&tcb->qOsSched, &pri->qReadyHead);
+                    list_del(&tcb->qNodeSched);
+                    list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
                     tcb->sliceTicksCnt = 0;
                 }
             } /* SCHED_RR == pri->schedPolicy */
@@ -158,18 +158,24 @@ STATUS coreTickDoing()
 
 void coreTrySchedule()
 {
+    int grp;
+    int off;
     LUOS_TCB *tcb;
-    LUOS_INFO *osInfo = &__osinfo__;
-    ULONG grp = cpuCntLeadZeros(osInfo->readyPriGrp);
-    ULONG off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
-    ULONG priority = grp * BITS_PER_LONG + off;
-    PriInfo_t *pri = osInfo->priInfoTbl + priority;
+    PriInfo_t *pri;
+    int  priority;
+    LUOS_INFO *osInfo;
     
-    tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qOsSched);
-    if (tcb != currentTask()) {
+    osInfo = &__osinfo__;
+    grp = cpuCntLeadZeros(osInfo->readyPriGrp);
+    off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
+    priority = grp * BITS_PER_LONG + off;
+
+    if (currentTask()->priority > priority) {
         /* start scheduled */
-#if 0
-        cpuTaskContextSwitchTrig();
+        pri = osInfo->priInfoTbl + priority;
+        tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
+#if 1
+        cpuTaskContextSwitchTrig(currentTask(), tcb);
 #endif
     }
 }

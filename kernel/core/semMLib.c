@@ -21,20 +21,22 @@
  ******************************************************************************/
 #include "coreLib.h"
 
-LOCAL BOOL semMinLibInstalled = false;
+LOCAL BOOL semMLibInstalled = false;
 
 STATUS semMLibInit()
 {
-    SEM_OPS semCountOps = {
+    SEM_OPS semOps = {
         .psemGive       = (semGive_t)semMGive,
         .psemTake       = (semTake_t)semMTake,
         .psemFlush      = (semFlush_t)semFlush,
         .psemGiveDefer  = (semGiveDefer_t)semGiveDefer,
         .psemFlushDefer = (semFlushDefer_t)semFlushDefer
     };
-    semTypeInit(SEM_TYPE_MUTEX, &semCountOps);
-    semMinLibInstalled = true;
-    return OK;
+    semTypeInit(SEM_TYPE_MUTEX, &semOps);
+    if (OK == semLibInit()) {
+        semMLibInstalled = true;
+    }
+    return semMLibInstalled ? OK : ERROR;
 }
 
 STATUS semMInit(SEM_ID semId, int options)
@@ -81,7 +83,7 @@ STATUS semMGive(SEM_ID semId)
                 intUnlock(level);
                 return taskPrioritySet((tid_t)tcb, semId->oriPriority);
             }
-            if (taskPendQueGet(tcb, semId)) {
+            if (OK == taskPendQueGet(tcb, semId)) {
                 coreTrySchedule();
             }
         }
@@ -95,9 +97,9 @@ STATUS semMTake(SEM_ID semId, int timeout)
 {
     int level;
     int newpri;
-    ULONG grp;
-    ULONG off;
-    ULONG priority;
+    int grp;
+    int off;
+    int priority;
     PriInfo_t *pri;
     TCB_ID tcb, tcb1;
     TLIST *node;
@@ -129,24 +131,17 @@ STATUS semMTake(SEM_ID semId, int timeout)
         return ERROR;
     }
     pri = osInfo->priInfoTbl + tcb->priority;
-    list_del(&tcb->qOsSched);
-    pri->numTask--;
+    list_del(&tcb->qNodeSched);
+    taskReadyRemove(tcb);
     tcb->status |= TASK_PEND;
     if (WAIT_FOREVER != timeout) {
         tcb->dlyTicks = timeout;
         tcb->status |= TASK_DELAY;
-        list_add_tail(&tcb->qOsSched, &(osInfo->qDelayHead));
+        list_add_tail(&tcb->qNodeSched, &(osInfo->qDelayHead));
     } else {
-        list_add_tail(&tcb->qOsSched, &(osInfo->qPendHead));
+        list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
     }
     taskPendQuePut(tcb, semId);
-    tcb->semIdPended = semId;
-    if (0 == pri->numTask) {
-        grp = priorityGroup(tcb->priority);
-        off = priorityOffset(tcb->priority);
-        osInfo->readyPriGrp      &= ~(1 << grp);
-        osInfo->readyPriTbl[grp] &= ~(1 << off);
-    }
     if (semId->semOwner->priority > tcb->priority) {
         newpri = tcb->priority;
         tcb = semId->semOwner;

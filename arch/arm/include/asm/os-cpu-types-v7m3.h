@@ -24,6 +24,7 @@
 
 typedef uint32_t tid_t;
 typedef uint32_t cpureg_t;
+typedef uint32_t cpudata_t;
 typedef uint32_t cputime_t;
 
 #endif /* #ifndef __OS_CPU_TYPES_V7M3_H__ */

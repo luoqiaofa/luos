@@ -25,16 +25,18 @@ LOCAL BOOL semBinLibInstalled = false;
 
 STATUS semBLibInit()
 {
-    SEM_OPS semCountOps = {
+    SEM_OPS semOps = {
         .psemGive       = (semGive_t)semBGive,
         .psemTake       = (semTake_t)semBTake,
         .psemFlush      = (semGive_t)semFlush,
         .psemGiveDefer  = (semGive_t)semGiveDefer,
         .psemFlushDefer = (semGive_t)semFlushDefer,
     };
-    semTypeInit(SEM_TYPE_BINARY, &semCountOps);
-    semBinLibInstalled = true;
-    return OK;
+    semTypeInit(SEM_TYPE_BINARY, &semOps);
+    if (OK == semLibInit()) {
+        semBinLibInstalled = true;
+    }
+    return semBinLibInstalled ? OK : ERROR;
 }
 
 STATUS semBInit(SEM_ID semId, int options, SEM_B_STATE initialState)
@@ -88,7 +90,7 @@ STATUS semBGive(SEM_ID semId)
             intUnlock(level);
             return OK;
         }
-        if (taskPendQueGet(tcb, semId)) {
+        if (OK == taskPendQueGet(tcb, semId)) {
             coreTrySchedule();
         }
         intUnlock(level);
@@ -100,9 +102,9 @@ STATUS semBGive(SEM_ID semId)
 STATUS semBTake(SEM_ID semId, int timeout)
 {
     int level;
-    ULONG grp;
-    ULONG off;
-    ULONG priority;
+    int grp;
+    int off;
+    int priority;
     PriInfo_t *pri;
     TCB_ID tcb, tcb1;
     TLIST *node;
@@ -127,24 +129,17 @@ STATUS semBTake(SEM_ID semId, int timeout)
         return ERROR;
     }
     pri = osInfo->priInfoTbl + tcb->priority;
-    list_del(&tcb->qOsSched);
-    pri->numTask--;
+    list_del(&tcb->qNodeSched);
+    taskReadyRemove(tcb);
     tcb->status |= TASK_PEND;
     if (WAIT_FOREVER != timeout) {
         tcb->dlyTicks = timeout;
         tcb->status |= TASK_DELAY;
-        list_add_tail(&tcb->qOsSched, &(osInfo->qDelayHead));
+        list_add_tail(&tcb->qNodeSched, &(osInfo->qDelayHead));
     } else {
-        list_add_tail(&tcb->qOsSched, &(osInfo->qPendHead));
+        list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
     }
     taskPendQuePut(tcb, semId);
-    tcb->semIdPended = semId;
-    if (0 == pri->numTask) {
-        grp = priorityGroup(tcb->priority);
-        off = priorityOffset(tcb->priority);
-        osInfo->readyPriGrp      &= ~(1 << grp);
-        osInfo->readyPriTbl[grp] &= ~(1 << off);
-    }
     coreTrySchedule();
     intUnlock(level);
     return tcb->errCode;

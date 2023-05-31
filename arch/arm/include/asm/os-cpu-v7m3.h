@@ -26,15 +26,22 @@
 #ifndef  NVIC_PENDSVSET
 #define  NVIC_PENDSVSET     0x10000000
 #endif
-static inline void cpuTaskContextSwitchTrig()
+#if 0
+static inline void cpuTaskContextSwitchTrig(register void* cur, register void* tcb_high)
 {
     NVIC_INT_CTRL = NVIC_PENDSVSET;
 }
 
-static inline void cpuIntContextSwitchTrig()
+static inline void cpuIntContextSwitchTrig(register void* cur, register void* tcb_high)
 {
     NVIC_INT_CTRL = NVIC_PENDSVSET;
 }
+#else
+void cpuTaskContextSwitchTrig(register void* cur, register void* tcb_high);
+//__attribute__((optimize("O0")));
+void cpuIntContextSwitchTrig(register void* cur, register void* tcb_high);
+// __attribute__((optimize("O0")));
+#endif
 
 typedef struct armv7m3_stkregs {
     /* R0-R15 and xPSR need save in stack, 
@@ -58,16 +65,16 @@ typedef struct armv7m3_stkregs {
     cpureg_t LR; /* R14 */
     cpureg_t PC; /* R15 */
     cpureg_t PSR;
-} V7M3_STK_REGS;
+} STK_REGS;
 
 typedef struct coretex_v7m3_regs {
-    V7M3_STK_REGS stkRegs;
-    cpureg_t      MSP;
-    cpureg_t      PSP;
-    cpureg_t      BASEPRI;
-    cpureg_t      PRIMASK;
-    cpureg_t      FAULTMASK;
-    cpureg_t      CONTROL;
+    STK_REGS stkRegs;
+    cpureg_t MSP;
+    cpureg_t PSP;
+    cpureg_t BASEPRI;
+    cpureg_t PRIMASK;
+    cpureg_t FAULTMASK;
+    cpureg_t CONTROL;
 } REG_SET;
 
 extern int intLock(void);

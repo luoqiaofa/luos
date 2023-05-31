@@ -23,9 +23,9 @@
 
 void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
 {
-    V7M3_STK_REGS *stk;
+    STK_REGS *stk;
     
-    stk = (V7M3_STK_REGS *)tcb->stack;
+    stk = (STK_REGS *)tcb->stack;
     stk--;
     stk->R4  = 0x04040404;
     stk->R5  = 0x05050505;
@@ -56,13 +56,13 @@ int intUnlock (int oldSR)
 }
 
 #if defined(__CC_ARM)
-int __asm cpuCntLeadZeros(ULONG val)
+int __asm cpuCntLeadZeros(cpudata_t val)
 {
     clz     r0, r0
     bx      lr
 }
 #else /* gnu gcc */
-int cpuCntLeadZeros(ULONG val)
+int cpuCntLeadZeros(cpudata_t val)
 {
     __asm__ __volatile__(
             "clz     %0, %0\n"
@@ -74,3 +74,14 @@ int cpuCntLeadZeros(ULONG val)
 }
 #endif
 
+#if 1
+void cpuTaskContextSwitchTrig(register void* cur, register void* tcb_high)
+{
+    NVIC_INT_CTRL = NVIC_PENDSVSET;
+}
+
+void cpuIntContextSwitchTrig(register void* cur, register void* tcb_high)
+{
+    NVIC_INT_CTRL = NVIC_PENDSVSET;
+}
+#endif

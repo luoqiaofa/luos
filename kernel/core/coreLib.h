@@ -76,8 +76,8 @@ typedef struct luosInfo {
     uint32_t  sliceTicks;
     TLIST     qDelayHead; 
     TLIST     qPendHead; 
-    ULONG     readyPriGrp; 
-    ULONG     readyPriTbl[NLONG_PRIORITY];
+    cpudata_t readyPriGrp; 
+    cpudata_t readyPriTbl[NLONG_PRIORITY];
     PriInfo_t priInfoTbl[CONFIG_NUM_PRIORITY];
     UINT      taskCreatedCnt;     
 } LUOS_INFO;
@@ -115,9 +115,38 @@ static inline int priorityOffset(int priority) {
     }
 }
 
+static inline void taskReadyRemove(TCB_ID tcb)
+{
+    int grp;
+    int off;
+    PriInfo_t *pri = __osinfo__.priInfoTbl + tcb->priority;
+
+    pri->numTask--;
+    grp = priorityGroup(tcb->priority);
+    off = priorityOffset(tcb->priority);
+    __osinfo__.readyPriTbl[grp] &= ~(1 << off);
+    if (0 == pri->numTask) {
+        __osinfo__.readyPriGrp  &= ~(1 << grp);
+    }
+}
+
+static inline void taskReadyAdd(TCB_ID tcb)
+{
+    int grp;
+    int off;
+    PriInfo_t *pri = __osinfo__.priInfoTbl + tcb->priority;
+
+    pri->numTask++;
+    grp = priorityGroup(tcb->priority);
+    off = priorityOffset(tcb->priority);
+    __osinfo__.readyPriTbl[grp] |= (1 << off);
+    __osinfo__.readyPriGrp      |= (1 << grp);
+}
+
 extern void * osMemAlloc(size_t nbytes);
 extern STATUS osMemFree(void *ptr);
 extern void coreTrySchedule();
+
 #endif /* #ifndef __OSCORE_H__ */
 
 
