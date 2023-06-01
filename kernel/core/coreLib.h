@@ -151,6 +151,8 @@ extern void * osMemAlloc(size_t nbytes);
 extern STATUS osMemFree(void *ptr);
 extern void coreTrySchedule();
 STATUS coreTickDoing();
+extern STATUS sysClkRateSet(int ticksPerSecond);
+extern int sysClkRateGet(void);
 
 
 #endif /* #ifndef __OSCORE_H__ */

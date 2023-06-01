@@ -157,6 +157,7 @@ STATUS taskActivate(tid_t tid)
         return OK;
     }
     level = intLock();
+    tcb->status = TASK_READY;
     pri = osInfo->priInfoTbl + tcb->priority;
     list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
     taskReadyAdd(tcb);
@@ -213,6 +214,7 @@ STATUS taskDelay(int ticks)
     tcb->dlyTicks = ticks;
     list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
+    tcb->status = TASK_DELAY;
     list_add_tail(&tcb->qNodeSched, &osInfo->qDelayHead);
     coreTrySchedule();
     return 0;
