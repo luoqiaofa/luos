@@ -71,6 +71,7 @@ typedef struct priorityInfo {
  */
 typedef struct luosInfo {
     LUOS_TCB* currentTcb;
+    LUOS_TCB* highestTcb;
     uint32_t  sliceTicks;
     TLIST     qDelayHead;
     TLIST     qPendHead;
@@ -80,6 +81,8 @@ typedef struct luosInfo {
     UINT      taskCreatedCnt;
     BOOL      running;
     BOOL      schedLocked;
+    cpudata_t intNestedCnt;
+    cpudata_t sysTicksCnt;
 } LUOS_INFO;
 
 extern LUOS_INFO __osinfo__;
@@ -147,6 +150,8 @@ extern STATUS coreLibInit(void);
 extern void * osMemAlloc(size_t nbytes);
 extern STATUS osMemFree(void *ptr);
 extern void coreTrySchedule();
+STATUS coreTickDoing();
+
 
 #endif /* #ifndef __OSCORE_H__ */
 

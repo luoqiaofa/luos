@@ -123,6 +123,7 @@ again:
     } else {
         list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
     }
+    tcb->semIdPended = semId;
     taskPendQuePut(tcb, semId);
     coreTrySchedule();
     intUnlock(level);

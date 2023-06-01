@@ -45,15 +45,17 @@ void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
     stk->PSR = 0x01000000u;
     tcb->stack = stk;
 }
+extern int cpuIntDisable();
+extern int cpuIntEnable();
 
 int intLock(void)
 {
-    return 0;
+    return cpuIntDisable();
 }
 
 int intUnlock (int oldSR)
 {
-    return 0;
+    return cpuIntEnable();
 }
 
 #if defined(__CC_ARM)

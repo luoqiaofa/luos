@@ -375,6 +375,9 @@ STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
             } else {
                 list_for_each_prev(node, &semId->qPendHead) {
                     tcb1 = list_entry(node, LUOS_TCB, qNodePend);
+                    if (tcb1 == tcb) {
+                        break;
+                    }
                     if (tcb->priority >= tcb1->priority) {
                         list_add_tail(&tcb->qNodePend, node);
                         break;
@@ -393,25 +396,16 @@ STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
     PriInfo_t *pri;
     LUOS_INFO *osInfo = osCoreInfo();
 
-    if (SEM_TYPE_BINARY == semId->semType || SEM_TYPE_MUTEX == semId->semType) {
-        if (tcb->semIdPended != semId) {
-            return ERROR;
-        }
-    }
-
-    if (tcb->semIdPended == semId) {
-        tcb->semIdPended = NULL;
-    }
     /* SEM_Q_PRIORITY */
     if (list_empty(&semId->qPendHead)) {
         return ERROR;
     } else {
         tcb1 = list_first_entry(&semId->qPendHead, LUOS_TCB, qNodePend);
         list_del(&tcb1->qNodePend);
-        pri = osInfo->priInfoTbl + tcb1->priority;
+        tcb1->semIdPended = NULL;
         list_del(&tcb1->qNodeSched); /* delete from delay queue or pend queue */
         tcb1->status &= ~(TASK_PEND | TASK_DELAY);
-        tcb1->semIdPended = semId;
+        pri = osInfo->priInfoTbl + tcb1->priority;
         if (SCHED_RR == pri->schedPolicy) {
             tcb1->sliceTicksCnt = 0;
         }

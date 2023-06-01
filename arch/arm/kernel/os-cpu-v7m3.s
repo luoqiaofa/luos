@@ -1,10 +1,31 @@
     PRESERVE8
     THUMB
     AREA    |.text|, CODE, READONLY
+
+OS_CPU_SysTickHandler  PROC
+        IMPORT  __osinfo__
+        EXPORT OS_CPU_SysTickHandler
+        IMPORT coreTickDoing
+        CPSID   I
+        PUSH   {R4-R11,LR}
+        LDR    R2, =coreTickDoing
+        BLX    R2
+        LDR    R2, =__osinfo__
+        LDR    R0, [R2]
+        LDR    R1, [R2, #0x04]
+        POP    {R4-R11,LR}
+        CMP    R0, R1
+        BNE    OS_CPU_PendSVHandler
+        CPSIE   I
+        BX      LR
+
 OS_CPU_PendSVHandler  PROC                                        ;// Modified by fire £¨Ô­ÊÇ PendSV Handler£©
         EXPORT  OS_CPU_PendSVHandler
         IMPORT  __osinfo__
         CPSID   I                                                   ; Prevent interruption during context switch
+        LDR     R2, =__osinfo__
+        LDR     R0, [R2]
+        LDR     R1, [R2, #0x04]
         MRS     R2, PSP                                             ; PSP is process stack pointer
         CBZ     R2, OS_CPU_PendSVHandler_nosave                     ; Skip register save the first time
         SUBS    R2, R2, #0x20                                       ; Save remaining regs r4-11 on process stack
@@ -24,4 +45,17 @@ OS_CPU_PendSVHandler_nosave
         CPSIE   I
         BX      LR                                                  ; Exception return will restore remaining context
     ENDP
+
+cpuIntDisable PROC
+    EXPORT cpuIntDisable
+    CPSID   I
+    MOV  R0, #0
+    BX  LR
+
+cpuIntEnable PROC
+    EXPORT cpuIntEnable
+    CPSIE   I
+    MOV  R0, #0
+    BX  LR
+
 END
