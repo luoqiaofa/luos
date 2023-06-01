@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : semCLib.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-29 11:19:05 AM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-29
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -68,7 +68,7 @@ STATUS semCGive(SEM_ID semId)
     if (NULL == semId || semId->semType != SEM_TYPE_COUNT) {
         return ERROR;
     }
-    
+
     level = intLock();
     if (list_empty(&semId->qPendHead)) {
         intUnlock(level);
@@ -100,6 +100,7 @@ STATUS semCTake(SEM_ID semId, int timeout)
     if (timeout < WAIT_FOREVER) {
         return ERROR;
     }
+again:
     level = intLock();
     if (semId->semCount > 0) {
         semId->semCount--;
@@ -125,6 +126,9 @@ STATUS semCTake(SEM_ID semId, int timeout)
     taskPendQuePut(tcb, semId);
     coreTrySchedule();
     intUnlock(level);
+    if (OK == tcb->errCode) {
+        goto again;
+    }
     return tcb->errCode;
 }
 

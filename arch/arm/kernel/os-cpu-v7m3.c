@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : arm-v7m3.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-25 10:15:55 AM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-25
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -24,7 +24,7 @@
 void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
 {
     STK_REGS *stk;
-    
+
     stk = (STK_REGS *)tcb->stack;
     stk--;
     stk->R4  = 0x04040404;
@@ -43,6 +43,7 @@ void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
     stk->LR  = (uint32_t)exitRtn; /* R14 */
     stk->PC  = (uint32_t)tcb->taskEntry; /* R15 */
     stk->PSR = 0x01000000u;
+    tcb->stack = stk;
 }
 
 int intLock(void)
@@ -68,8 +69,8 @@ int cpuCntLeadZeros(cpudata_t val)
             "clz     %0, %0\n"
             : "+r"(val)
             : "r"(val)
-            : 
-            ); 
+            :
+            );
     return val;
 }
 #endif
@@ -77,7 +78,10 @@ int cpuCntLeadZeros(cpudata_t val)
 #if 1
 void cpuTaskContextSwitchTrig(register void* cur, register void* tcb_high)
 {
+#if 1
     NVIC_INT_CTRL = NVIC_PENDSVSET;
+    // osCoreInfo()->currentTcb = tcb_high;
+#endif
 }
 
 void cpuIntContextSwitchTrig(register void* cur, register void* tcb_high)

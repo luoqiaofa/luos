@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : taskLib.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-24 05:00:17 PM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-24
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -218,6 +218,12 @@ STATUS taskDelay(int ticks)
     return 0;
 }
 
+char * taskName(tid_t tid)
+{
+    return ((TCB_ID)tid)->name;
+}
+
+
 tid_t taskIdSelf(void)
 {
     return (tid_t)currentTask();
@@ -255,7 +261,7 @@ STATUS taskSuspend(tid_t tid)
     LUOS_TCB *tcb;
     int priority;
     PriInfo_t *pri;
-    
+
     tcb = (LUOS_TCB *)tid;
     pri = osInfo->priInfoTbl + tcb->priority;
     list_del(&tcb->qNodeSched);
@@ -270,7 +276,7 @@ STATUS taskResume(tid_t tid)
 {
     LUOS_TCB *tcb;
     PriInfo_t *pri;
-    
+
     tcb = (LUOS_TCB *)tid;
     if (0 == tid || currentTask() == tcb) {
         return OK;
@@ -297,7 +303,7 @@ STATUS taskRestart(tid_t tid)
     }
     list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
-    rc = taskInit(tcb, tcb->name, tcb->priority, tcb->options, tcb->stkBase, 
+    rc = taskInit(tcb, tcb->name, tcb->priority, tcb->options, tcb->stkBase,
             tcb->stkSize, tcb->taskEntry, tcb->param);
     return taskActivate((tid_t)tcb);
 }
@@ -350,7 +356,7 @@ STATUS taskPriorityGet(tid_t tid, int *pPriority)
     return ERROR;
 }
 
-STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId) 
+STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
 {
     TCB_ID tcb1;
     TLIST *node;
@@ -380,18 +386,22 @@ STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
     return 0;
 }
 
-STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId) 
+STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
 {
     TCB_ID tcb1;
     TLIST *node;
     PriInfo_t *pri;
     LUOS_INFO *osInfo = osCoreInfo();
 
-    if (tcb->semIdPended != semId) {
-        return ERROR;
+    if (SEM_TYPE_BINARY == semId->semType || SEM_TYPE_MUTEX == semId->semType) {
+        if (tcb->semIdPended != semId) {
+            return ERROR;
+        }
     }
 
-    tcb->semIdPended = NULL;
+    if (tcb->semIdPended == semId) {
+        tcb->semIdPended = NULL;
+    }
     /* SEM_Q_PRIORITY */
     if (list_empty(&semId->qPendHead)) {
         return ERROR;

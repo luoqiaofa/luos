@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : coreLib.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-24 04:59:50 PM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-24
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -42,7 +42,7 @@ STATUS coreLibInit()
     int idx;
     LUOS_INFO *pInfo;
     PriInfo_t *pri;
-    char *mem_pool = (char *)&osMemPool[0]; 
+    char *mem_pool = (char *)&osMemPool[0];
     size_t size = CONFIG_TASK_MEM_POOL_SIZE;
     size_t blksize = MIN_BLK_SIZE;
 
@@ -101,13 +101,13 @@ STATUS coreTickDoing()
     list_for_each(node, &osInfo->qDelayHead) {
         if (NULL != node_del) {
             list_del(node_del);
-            tcb = list_entry(node_del, LUOS_TCB, qNodeSched); 
+            tcb = list_entry(node_del, LUOS_TCB, qNodeSched);
             pri = osInfo->priInfoTbl + tcb->priority;
             list_add_tail(node_del, &pri->qReadyHead);
             pri->numTask++;
             node_del = NULL;
         }
-        tcb = list_entry(node, LUOS_TCB, qNodeSched); 
+        tcb = list_entry(node, LUOS_TCB, qNodeSched);
         if (tcb->dlyTicks > 0) {
             tcb->dlyTicks--;
             if (0 == tcb->dlyTicks) {
@@ -126,7 +126,7 @@ STATUS coreTickDoing()
     }
     if (NULL != node_del) {
         list_del(node_del);
-        tcb = list_entry(node_del, LUOS_TCB, qNodeSched); 
+        tcb = list_entry(node_del, LUOS_TCB, qNodeSched);
         pri = osInfo->priInfoTbl + tcb->priority;
         list_add_tail(node_del, &pri->qReadyHead);
         pri->numTask++;
@@ -164,19 +164,22 @@ void coreTrySchedule()
     PriInfo_t *pri;
     int  priority;
     LUOS_INFO *osInfo;
-    
+
     osInfo = &__osinfo__;
+    if (!osInfo->running) {
+        return ;
+    }
     grp = cpuCntLeadZeros(osInfo->readyPriGrp);
     off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
     priority = grp * BITS_PER_LONG + off;
-
-    if (currentTask()->priority > priority) {
+    pri = osInfo->priInfoTbl + priority;
+    tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
+    if ((NULL == currentTask()) || currentTask() != tcb) {
         /* start scheduled */
-        pri = osInfo->priInfoTbl + priority;
-        tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
-#if 1
+        if (NULL == currentTask()) {
+            osInfo->currentTcb = tcb;
+        }
         cpuTaskContextSwitchTrig(currentTask(), tcb);
-#endif
     }
 }
 
