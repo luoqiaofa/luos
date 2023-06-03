@@ -165,10 +165,10 @@ STATUS coreTickDoing()
         /* only one task in the priority ready table */
     }
     /* find the highest ready priority , then shedule */
-    osInfo->intNestedCnt--;
     if (0 == osInfo->intNestedCnt) {
         coreTrySchedule();
     }
+    osInfo->intNestedCnt--;
 	return 0;
 }
 
