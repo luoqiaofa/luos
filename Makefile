@@ -41,7 +41,7 @@ $(objdir)/%.o : %.c $(objdir)/%.d
 $(objdir)/%.d : %.c
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -MM $< > $@
-	sed -i -e "s/[^ ]\+\.o: /$(subst /,\/,$(@:.d=.o)): /g" $@
+	@sed -i -e "s/[^ ]\+\.o: /$(subst /,\/,$(@:.d=.o)): /g" $@
 
 clean:
 	@-rm -f $(objs) $(deps)

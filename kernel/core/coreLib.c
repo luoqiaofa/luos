@@ -150,6 +150,7 @@ STATUS coreTickDoing()
         }
     }
     if (tcb->lockCnt > 0) {
+        osInfo->intNestedCnt--;
         return ERROR;
     }
     if (pri->numTask > 1) {
@@ -164,8 +165,10 @@ STATUS coreTickDoing()
         /* only one task in the priority ready table */
     }
     /* find the highest ready priority , then shedule */
-    coreTrySchedule();
     osInfo->intNestedCnt--;
+    if (0 == osInfo->intNestedCnt) {
+        coreTrySchedule();
+    }
 	return 0;
 }
 
@@ -206,7 +209,4 @@ void coreTrySchedule()
         }
     }
 }
-
-
-
 
