@@ -23,7 +23,7 @@ srcs := \
 objdir:= out
 objs := $(addprefix $(objdir)/,$(srcs:.c=.o))
 deps := $(objs:.o=.d)
-elf  := $(objdir)/out
+elf  := $(objdir)/luos.elf
 
 .PHONY: default
 
