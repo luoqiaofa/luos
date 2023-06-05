@@ -36,6 +36,8 @@ LOCAL BOOL coreLibInstalled = false;
 #define CONFIG_SLICE_MS   20 /* 20MS */
 #endif
 
+extern int cpuCntLeadZeros(cpudata_t val);
+
 STATUS coreLibInit()
 {
     STATUS rc;
@@ -97,14 +99,10 @@ void coreEnterExit()
 
 STATUS coreTickDoing()
 {
-    STATUS rc;
-    int idx;
     TLIST *node, *node_del;
     LUOS_INFO *osInfo;
     PriInfo_t *pri;
     LUOS_TCB *tcb;
-    int grp;
-    int off;
 
     osInfo = &__osinfo__;
     osInfo->intNestedCnt++;
@@ -165,17 +163,10 @@ STATUS coreTickDoing()
         /* only one task in the priority ready table */
     }
     /* find the highest ready priority , then shedule */
-    if (0 == osInfo->intNestedCnt) {
-        coreTrySchedule();
-    }
+    coreTrySchedule();
     osInfo->intNestedCnt--;
-	return 0;
+    return 0;
 }
-
-
-
-extern int cpuCntLeadZeros(cpudata_t val);
-extern void OS_CPU_IntContextTrig(void *cur, void *high);
 
 void coreTrySchedule()
 {
@@ -197,9 +188,8 @@ void coreTrySchedule()
     priority = grp * BITS_PER_LONG + off;
     pri = osInfo->priInfoTbl + priority;
     if (list_empty(&pri->qReadyHead)) {
-        while (1) {;/* hang here */}
         intUnlock(level);
-        return ;
+        while (1) {;/* hang here */}
     }
     tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
     if ((NULL == currentTask()) || currentTask() != tcb) {
@@ -216,7 +206,4 @@ void coreTrySchedule()
     }
     intUnlock(level);
 }
-
-
-
 

@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : memPartLib.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-23 02:51:10 PM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-23
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -27,11 +27,11 @@ static MEM_PART sysMemAllocHeap;
 static PART_ID sysMemPartId = &sysMemAllocHeap;
 static MEM_BLK sysMemPool[CONFIG_MEM_HEAP_SIZE / sizeof(MEM_BLK)];
 
-STATUS memPartLibInit() 
+STATUS memPartLibInit()
 {
     int rc;
-    char *mem_pool = (char *)&sysMemPool[0]; 
-    size_t size = CONFIG_MEM_HEAP_SIZE; 
+    char *mem_pool = (char *)&sysMemPool[0];
+    size_t size = CONFIG_MEM_HEAP_SIZE;
     size_t blksize = MIN_ALLOC_BLK_SZ;
 
     sysMemPartId = &sysMemAllocHeap;
@@ -42,7 +42,7 @@ STATUS memPartLibInit()
     return rc;
 }
 
-STATUS memPartInit(PART_ID partId, char *mem_pool, size_t size, size_t blksize) 
+STATUS memPartInit(PART_ID partId, char *mem_pool, size_t size, size_t blksize)
 {
     unsigned long int uintptr;
     if (NULL == partId || NULL == mem_pool) {
@@ -65,7 +65,7 @@ STATUS memPartInit(PART_ID partId, char *mem_pool, size_t size, size_t blksize)
     return 0;
 }
 
-void *memPartAlloc(PART_ID partId, size_t nBytes) 
+void *memPartAlloc(PART_ID partId, size_t nBytes)
 {
     size_t sz;
     TLIST *node;
@@ -77,17 +77,17 @@ void *memPartAlloc(PART_ID partId, size_t nBytes)
     }
     if (partId->freeListSize >= nBytes) {
         list_for_each(node, &partId->freeListHdr) {
-            blk = list_entry(node, MEM_BLK, list); 
+            blk = list_entry(node, MEM_BLK, list);
             if (blk->totalSize >= nBytes) {
                 ptr = (void *)(blk + 1);
                 break;
             }
         }
-    if (NULL != ptr) {
-        list_del(node);
-        INIT_LIST_HEAD(node);
-        return ptr;
-    }
+        if (NULL != ptr) {
+            list_del(node);
+            INIT_LIST_HEAD(node);
+            return ptr;
+        }
     }
 
     sz = (nBytes + sizeof(MEM_BLK) + partId->blkMinSize - 1) & (~(partId->blkMinSize - 1));
@@ -98,13 +98,13 @@ void *memPartAlloc(PART_ID partId, size_t nBytes)
     INIT_LIST_HEAD(&blk->list);
     blk->totalSize = sz - sizeof(MEM_BLK);
     blk->numBlock = blk->totalSize / partId->blkMinSize;
-    partId->freeSize -= sz; 
+    partId->freeSize -= sz;
     ptr = (void *)(blk + 1);
     partId->freeBase = partId->freeBase + sz;
     return ptr;
 }
 
-STATUS memPartFree(PART_ID partId, void* pBlk) 
+STATUS memPartFree(PART_ID partId, void* pBlk)
 {
     void *ptr;
     void *ptr2;
@@ -118,14 +118,14 @@ STATUS memPartFree(PART_ID partId, void* pBlk)
     }
     blk = (MEM_BLK *)pBlk;
     blk--;
-    
+
     if (!list_empty_careful(&blk->list)) {
         return -2;
     }
     need_merge = false;
     list_for_each(node, &partId->freeListHdr) {
         ptr = (void *)blk;
-        blk2 = list_entry(node, MEM_BLK, list); 
+        blk2 = list_entry(node, MEM_BLK, list);
         ptr2 = (void *)blk2;
         if (ptr < ptr2) {
             ptr += sizeof(MEM_BLK) + blk->totalSize;
@@ -174,10 +174,10 @@ STATUS memPartFree(PART_ID partId, void* pBlk)
             list_add(&blk->list, &partId->freeListHdr);
         }
     }
-    return 0; 
+    return 0;
 }
 
-void *memObjMalloc(PART_ID partId, size_t nBytes) 
+void *memObjMalloc(PART_ID partId, size_t nBytes)
 {
     void *p1;
     void *p2;
@@ -219,7 +219,7 @@ void *memObjMalloc(PART_ID partId, size_t nBytes)
     return p1;
 }
 
-STATUS memObjFree(PART_ID partId, void *ptr) 
+STATUS memObjFree(PART_ID partId, void *ptr)
 {
     MEM_OBJ *pmem;
     LUOS_TCB *tcb = currentTask();

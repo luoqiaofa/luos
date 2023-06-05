@@ -19,7 +19,7 @@ OS_CPU_SysTickHandler  PROC
     CPSIE   I
     BX      LR
 
-OS_CPU_PendSVHandler  PROC                                        ;// Modified by fire ï¿½ï¿½Ô­ï¿½ï¿½ PendSV Handlerï¿½ï¿½
+OS_CPU_PendSVHandler  PROC                                        ;// Modified by fire £¨Ô­ÊÇ PendSV Handler£©
     EXPORT  OS_CPU_PendSVHandler
     IMPORT  __osinfo__
     CPSID   I                                                   ; Prevent interruption during context switch

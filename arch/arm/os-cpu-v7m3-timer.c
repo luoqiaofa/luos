@@ -33,9 +33,9 @@ extern int cpuSysTicksConfig(uint32_t ticks);
 STATUS sysClkRateSet(int ticksPerSecond)
 {
 	if (OK == cpuSysTicksConfig(ticksPerSecond)) {
-    cpuTimerRate = ticksPerSecond;
+	    cpuTimerRate = ticksPerSecond;
 	    return OK;
-}
+	}
 
     return ERROR;
 }
