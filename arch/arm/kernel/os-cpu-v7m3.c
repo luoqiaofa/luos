@@ -46,16 +46,16 @@ void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
     tcb->stack = stk;
 }
 extern int cpuIntDisable();
-extern int cpuIntEnable();
+extern int cpuIntEnable(int level);
 
 int intLock(void)
 {
     return cpuIntDisable();
 }
 
-int intUnlock (int oldSR)
+int intUnlock (int level)
 {
-    return cpuIntEnable();
+    return cpuIntEnable(level);
 }
 
 #if defined(__CC_ARM)

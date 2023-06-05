@@ -83,9 +83,10 @@ typedef struct luosInfo {
     BOOL      schedLocked;
     cpudata_t intNestedCnt;
     cpudata_t sysTicksCnt;
+    ULONG     conTextCnt;
 } LUOS_INFO;
 
-extern LUOS_INFO __osinfo__;
+extern volatile LUOS_INFO __osinfo__;
 static inline LUOS_TCB* currentTask() {
     return __osinfo__.currentTcb;
 }
@@ -127,9 +128,11 @@ static inline void taskReadyRemove(TCB_ID tcb)
     pri->numTask--;
     grp = priorityGroup(tcb->priority);
     off = priorityOffset(tcb->priority);
-    __osinfo__.readyPriTbl[grp] &= ~(1 << (31 - off));
     if (0 == pri->numTask) {
-        __osinfo__.readyPriGrp  &= ~(1 << (31 - grp));
+        __osinfo__.readyPriTbl[grp] &= ~(1 << (BITS_PER_LONG - 1 - off));
+        if (0 == __osinfo__.readyPriTbl[grp]) {
+            __osinfo__.readyPriGrp  &= ~(1 << (BITS_PER_LONG - 1 - grp));
+        }
     }
 }
 
@@ -140,10 +143,11 @@ static inline void taskReadyAdd(TCB_ID tcb)
     PriInfo_t *pri = __osinfo__.priInfoTbl + tcb->priority;
 
     pri->numTask++;
+    tcb->sliceTicksCnt = 0;
     grp = priorityGroup(tcb->priority);
     off = priorityOffset(tcb->priority);
-    __osinfo__.readyPriTbl[grp] |= (1 << (31 - off));
-    __osinfo__.readyPriGrp      |= (1 << (31 - grp));
+    __osinfo__.readyPriTbl[grp] |= (1 << (BITS_PER_LONG - 1 - off));
+    __osinfo__.readyPriGrp      |= (1 << (BITS_PER_LONG - 1 - grp));
 }
 
 extern STATUS coreLibInit(void);

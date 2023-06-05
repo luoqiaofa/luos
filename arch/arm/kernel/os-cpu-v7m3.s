@@ -4,24 +4,31 @@
 
 OS_CPU_SysTickHandler  PROC
     IMPORT  __osinfo__
-    EXPORT OS_CPU_SysTickHandler
-    IMPORT coreTickDoing
-    CPSID   I
-    PUSH   {R4-R11,LR}
-    LDR    R2, =coreTickDoing
-    BLX    R2
-    LDR    R2, =__osinfo__
-    LDR    R0, [R2]
-    LDR    R1, [R2, #0x04]
-    POP    {R4-R11,LR}
-    CMP    R0, R1
-    BNE    OS_CPU_PendSVHandler
+    IMPORT  coreIntEnter
+    IMPORT  coreIntExit
+    IMPORT  coreTickDoing
+    EXPORT  OS_CPU_SysTickHandler
+    CPSID  I
+    PUSH    {R4-R11,LR}
+    LDR     R0, =coreIntEnter
+    BLX     R0
+    LDR     R2, =coreTickDoing
+    BLX     R2
+    LDR     R0, =coreIntExit
+    BLX     R0
+    LDR     R2, =__osinfo__
+    LDR     R0, [R2]
+    LDR     R1, [R2, #0x04]
+    POP     {R4-R11,LR}
+    CMP     R0, R1
+    BNE     OS_CPU_PendSVHandler
     CPSIE   I
     BX      LR
 
 OS_CPU_PendSVHandler  PROC                                        ;// Modified by fire £¨Ô­ÊÇ PendSV Handler£©
     EXPORT  OS_CPU_PendSVHandler
     IMPORT  __osinfo__
+    IMPORT  coreContextHook
     CPSID   I                                                   ; Prevent interruption during context switch
     LDR     R2, =__osinfo__
     LDR     R0, [R2]
@@ -42,15 +49,20 @@ OS_CPU_PendSVHandler_nosave
     ADDS    R2, R2, #0x20
     MSR     PSP, R2                                             ; Load PSP with new process SP
     ORR     LR, LR, #0x04                                       ; Ensure exception return uses process stack
+    PUSH    {LR}
+    LDR     R0, =coreContextHook
+    BLX     R0
+    POP     {LR}
     CPSIE   I
     BX      LR                                                  ; Exception return will restore remaining context
     ENDP
 
 cpuIntDisable PROC
-    EXPORT cpuIntDisable
+    EXPORT  cpuIntDisable
     MRS     R0, PRIMASK
     CPSID   I
     BX  LR
+    NOP
     ENDP
 
 cpuIntEnable PROC

@@ -25,7 +25,7 @@
 #define CONFIG_TASK_MEM_POOL_SIZE (30*1024)
 #endif
 
-LUOS_INFO __osinfo__;
+volatile LUOS_INFO __osinfo__;
 
 LOCAL MEM_BLK  osMemPool[CONFIG_TASK_MEM_POOL_SIZE/sizeof(MEM_BLK)];
 LOCAL MEM_PART osMemPart;
@@ -102,11 +102,11 @@ STATUS coreTickDoing()
     TLIST *node, *node_del;
     LUOS_INFO *osInfo;
     PriInfo_t *pri;
-    LUOS_TCB *tcb;
+    TCB_ID tcb = currentTask();
 
     osInfo = &__osinfo__;
-    osInfo->intNestedCnt++;
     osInfo->sysTicksCnt++;
+    tcb->runTicksCnt++;
     node_del = NULL;
     list_for_each(node, &osInfo->qDelayHead) {
         if (NULL != node_del) {
@@ -148,7 +148,6 @@ STATUS coreTickDoing()
         }
     }
     if (tcb->lockCnt > 0) {
-        osInfo->intNestedCnt--;
         return ERROR;
     }
     if (pri->numTask > 1) {
@@ -164,7 +163,6 @@ STATUS coreTickDoing()
     }
     /* find the highest ready priority , then shedule */
     coreTrySchedule();
-    osInfo->intNestedCnt--;
     return 0;
 }
 
@@ -184,7 +182,13 @@ void coreTrySchedule()
     }
     level = intLock();
     grp = cpuCntLeadZeros(osInfo->readyPriGrp);
+    if (grp >= NLONG_PRIORITY) {
+        while (1) {;/* hang here */}
+    }
     off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
+    if (off >= BITS_PER_LONG) {
+        while (1) {;/* hang here */}
+    }
     priority = grp * BITS_PER_LONG + off;
     pri = osInfo->priInfoTbl + priority;
     if (list_empty(&pri->qReadyHead)) {
@@ -205,5 +209,28 @@ void coreTrySchedule()
         }
     }
     intUnlock(level);
+}
+
+void coreIntEnter(void)
+{
+    osCoreInfo()->intNestedCnt++;
+}
+
+void coreIntExit(void)
+{
+    osCoreInfo()->intNestedCnt--;
+}
+
+void coreContextHook(void)
+{
+    TCB_ID tcb = currentTask();
+    LUOS_INFO *info = osCoreInfo();
+
+    info->conTextCnt++;
+    tcb->latestTick = info->sysTicksCnt;
+    if (0 == tcb->firstSchedTs) {
+        tcb->firstSchedTs = info->sysTicksCnt;
+    }
+    tcb->schedCnt++;
 }
 

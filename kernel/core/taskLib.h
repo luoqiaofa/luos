@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : taskLib.h
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-15 04:41:08 PM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-15
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -41,7 +41,7 @@ typedef struct luosTcb {
     void *    stack;     /* statck pointer */
     void *    stkBase;   /* statck origin pointer */
     void *    stkEnd;    /* statck origin pointer */
-    int32_t   stkSize;   /* statck size */   
+    int32_t   stkSize;   /* statck size */
     int32_t   stkLimit;
     int32_t   dlyTicks;
     int       options;
@@ -54,10 +54,11 @@ typedef struct luosTcb {
     int32_t   sliceTicksCnt; /* count the ticks for slice */
     cputime_t firstSchedTs;  /* last scheduled os ticks cnt */
     int32_t   latestTick;    /* last scheduled os ticks cnt */
-    int32_t   osTicksCnt;    /* counter of scheduled times from last scheduled */
     START_RTN taskEntry;
     void *    param;
-    UINT      lockCnt;
+    cpudata_t lockCnt;
+    cpudata_t schedCnt;
+    cpudata_t runTicksCnt;
 } LUOS_TCB;
 
 typedef LUOS_TCB* TCB_ID;
@@ -69,10 +70,10 @@ typedef struct taskDesc {
     void*     stack;     /* statck pointer */
     void*     stkBase;   /* statck origin pointer */
     void*     stkEnd;    /* statck origin pointer */
-    int32_t   stkSize;   /* statck size */   
+    int32_t   stkSize;   /* statck size */
     int32_t   stkLimit;
     cputime_t firstSchedTs;  /* last scheduled os ticks cnt */
-} TASK_DESC; 
+} TASK_DESC;
 
 extern STATUS taskLibInit(void);
 extern tid_t taskSpawn(char *name, int priority, int options, int stackSize,

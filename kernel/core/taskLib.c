@@ -385,7 +385,7 @@ STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
                 list_for_each_prev(node, &semId->qPendHead) {
                     tcb1 = list_entry(node, LUOS_TCB, qNodePend);
                     if (tcb1 == tcb) {
-                        break;
+                        while (1) {/* hang up here */};
                     }
                     if (tcb->priority >= tcb1->priority) {
                         list_add_tail(&tcb->qNodePend, node);
