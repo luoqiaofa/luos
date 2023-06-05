@@ -52,6 +52,7 @@ STATUS memPartInit(PART_ID partId, char *mem_pool, size_t size, size_t blksize)
         return -2;
     }
     memset(partId, 0, sizeof(*partId));
+    INIT_LIST_HEAD(&partId->freeListHdr);
     partId->totalSize  = size;
     partId->memBase    = mem_pool;
     partId->blkMinSize = blksize;
@@ -82,23 +83,24 @@ void *memPartAlloc(PART_ID partId, size_t nBytes)
                 break;
             }
         }
-    }
     if (NULL != ptr) {
         list_del(node);
         INIT_LIST_HEAD(node);
         return ptr;
     }
+    }
+
     sz = (nBytes + sizeof(MEM_BLK) + partId->blkMinSize - 1) & (~(partId->blkMinSize - 1));
     if (partId->freeSize < sz) {
         return NULL;
     }
     blk = (MEM_BLK *)partId->freeBase;
-    INIT_LIST_HEAD(node);
+    INIT_LIST_HEAD(&blk->list);
     blk->totalSize = sz - sizeof(MEM_BLK);
     blk->numBlock = blk->totalSize / partId->blkMinSize;
     partId->freeSize -= sz; 
     ptr = (void *)(blk + 1);
-    partId->freeBase = ptr + sz;
+    partId->freeBase = partId->freeBase + sz;
     return ptr;
 }
 

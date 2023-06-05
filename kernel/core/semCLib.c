@@ -77,7 +77,9 @@ STATUS semCGive(SEM_ID semId)
     tcb = currentTask();
     semId->semCount++;
     if (OK == taskPendQueGet(tcb, semId)) {
+        intUnlock(level);
         coreTrySchedule();
+        return OK;
     }
     intUnlock(level);
     return OK;
@@ -125,8 +127,8 @@ again:
     }
     tcb->semIdPended = semId;
     taskPendQuePut(tcb, semId);
-    coreTrySchedule();
     intUnlock(level);
+    coreTrySchedule();
     if (OK == tcb->errCode) {
         goto again;
     }

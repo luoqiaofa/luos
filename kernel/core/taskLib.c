@@ -161,8 +161,8 @@ STATUS taskActivate(tid_t tid)
     pri = osInfo->priInfoTbl + tcb->priority;
     list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
     taskReadyAdd(tcb);
-    coreTrySchedule();
     intUnlock(level);
+    coreTrySchedule();
     return 0;
 }
 
@@ -193,29 +193,32 @@ STATUS taskLock(void)
 
 STATUS taskUnlock (void)
 {
-    int intSR;
+    int level;
     LUOS_TCB *tcb;
 
-    intSR = intLock();
+    level = intLock();
     tcb = currentTask();
     tcb->lockCnt++;
-    intUnlock(intSR);
+    intUnlock(level);
     return 0;
 }
 
 STATUS taskDelay(int ticks)
 {
     LUOS_TCB *tcb;
+    int level;
 
     if (ticks < 0) {
         return -1;
     }
+    level = intLock();
     tcb = currentTask();
     tcb->dlyTicks = ticks;
     list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status = TASK_DELAY;
     list_add_tail(&tcb->qNodeSched, &osInfo->qDelayHead);
+    intUnlock(level);
     coreTrySchedule();
     return 0;
 }
@@ -234,21 +237,19 @@ tid_t taskIdSelf(void)
 STATUS taskDelete(tid_t tid)
 {
     LUOS_TCB *tcb;
-    int grp;
-    int off;
-    int priority;
-    PriInfo_t *pri;
+    int level;
 
     tcb = (LUOS_TCB *)tid;
     if (0 == tid) {
         tcb = currentTask();
     }
+    level = intLock();
     tcb = (LUOS_TCB *)tid;
-    pri = osInfo->priInfoTbl + tcb->priority;
     list_del(&tcb->qNodeSched);
     INIT_LIST_HEAD(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status |= TASK_DEAD;
+    intUnlock(level);
     coreTrySchedule();
     return 0;
 }
@@ -263,13 +264,16 @@ STATUS taskSuspend(tid_t tid)
     LUOS_TCB *tcb;
     int priority;
     PriInfo_t *pri;
+    int level;
 
     tcb = (LUOS_TCB *)tid;
+    level = intLock();
     pri = osInfo->priInfoTbl + tcb->priority;
     list_del(&tcb->qNodeSched);
     INIT_LIST_HEAD(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status |= TASK_SUSPEND;
+    intUnlock(level);
     coreTrySchedule();
     return 0;
 }
@@ -278,15 +282,18 @@ STATUS taskResume(tid_t tid)
 {
     LUOS_TCB *tcb;
     PriInfo_t *pri;
+    int level;
 
     tcb = (LUOS_TCB *)tid;
     if (0 == tid || currentTask() == tcb) {
         return OK;
     }
+    level = intLock();
     pri = osInfo->priInfoTbl + tcb->priority;
     list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
     taskReadyAdd(tcb);
     tcb->status &= ~TASK_SUSPEND;
+    intUnlock(level);
     coreTrySchedule();
     return 0;
 }

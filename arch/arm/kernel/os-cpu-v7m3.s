@@ -19,7 +19,7 @@ OS_CPU_SysTickHandler  PROC
     CPSIE   I
     BX      LR
 
-OS_CPU_PendSVHandler  PROC                                        ;// Modified by fire £¨Ô­ÊÇ PendSV Handler£©
+OS_CPU_PendSVHandler  PROC                                        ;// Modified by fire ï¿½ï¿½Ô­ï¿½ï¿½ PendSV Handlerï¿½ï¿½
     EXPORT  OS_CPU_PendSVHandler
     IMPORT  __osinfo__
     CPSID   I                                                   ; Prevent interruption during context switch
@@ -48,14 +48,15 @@ OS_CPU_PendSVHandler_nosave
 
 cpuIntDisable PROC
     EXPORT cpuIntDisable
+    MRS     R0, PRIMASK
     CPSID   I
-    MOV  R0, #0
     BX  LR
+    ENDP
 
 cpuIntEnable PROC
     EXPORT cpuIntEnable
-    CPSIE   I
-    MOV  R0, #0
+    MSR PRIMASK, R0
     BX  LR
+    ENDP
 
 END

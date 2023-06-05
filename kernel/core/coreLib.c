@@ -185,16 +185,20 @@ void coreTrySchedule()
     PriInfo_t *pri;
     int  priority;
     LUOS_INFO *osInfo;
+    int level;
 
     osInfo = &__osinfo__;
     if (!osInfo->running) {
         return ;
     }
+    level = intLock();
     grp = cpuCntLeadZeros(osInfo->readyPriGrp);
     off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
     priority = grp * BITS_PER_LONG + off;
     pri = osInfo->priInfoTbl + priority;
     if (list_empty(&pri->qReadyHead)) {
+        while (1) {;/* hang here */}
+        intUnlock(level);
         return ;
     }
     tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
@@ -205,8 +209,14 @@ void coreTrySchedule()
             osInfo->currentTcb = tcb;
         }
         if (0 == osInfo->intNestedCnt) {
+            intUnlock(level);
             cpuTaskContextSwitchTrig(currentTask(), tcb);
+            return;
         }
     }
+    intUnlock(level);
 }
+
+
+
 
