@@ -25,7 +25,7 @@
 #define CONFIG_TASK_MEM_POOL_SIZE (30*1024)
 #endif
 
-volatile LUOS_INFO __osinfo__;
+LUOS_INFO __osinfo__;
 
 LOCAL MEM_BLK  osMemPool[CONFIG_TASK_MEM_POOL_SIZE/sizeof(MEM_BLK)];
 LOCAL MEM_PART osMemPart;
@@ -38,7 +38,7 @@ LOCAL BOOL coreLibInstalled = false;
 
 extern int cpuCntLeadZeros(cpudata_t val);
 
-STATUS coreLibInit()
+STATUS coreLibInit(void)
 {
     STATUS rc;
     int idx;
@@ -87,17 +87,17 @@ STATUS osMemFree(void *ptr)
     return 0;
 }
 
-void coreEnterInt()
+void coreEnterInt(void)
 {
     __osinfo__.intNestedCnt++;
 }
 
-void coreEnterExit()
+void coreEnterExit(void)
 {
     __osinfo__.intNestedCnt--;
 }
 
-STATUS coreTickDoing()
+STATUS coreTickDoing(void)
 {
     TLIST *node, *node_del;
     LUOS_INFO *osInfo;
@@ -166,7 +166,7 @@ STATUS coreTickDoing()
     return 0;
 }
 
-void coreTrySchedule()
+void coreTrySchedule(void)
 {
     int grp;
     int off;
@@ -226,11 +226,31 @@ void coreContextHook(void)
     TCB_ID tcb = currentTask();
     LUOS_INFO *info = osCoreInfo();
 
-    info->conTextCnt++;
+    info->contextCnt++;
     tcb->latestTick = info->sysTicksCnt;
     if (0 == tcb->firstSchedTs) {
         tcb->firstSchedTs = info->sysTicksCnt;
     }
     tcb->schedCnt++;
+}
+
+uint32_t sysClkTicksGet(void)
+{
+    return osCoreInfo()->sysTicksCnt;
+}
+
+BOOL coreScheduleIsEna(void)
+{
+    return osCoreInfo()->schedLocked;
+}
+
+void coreScheduleEnable(void)
+{
+    osCoreInfo()->schedLocked = true;
+}
+
+void coreScheduleDisable(void)
+{
+    osCoreInfo()->schedLocked = false;
 }
 

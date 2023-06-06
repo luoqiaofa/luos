@@ -63,7 +63,6 @@ SEM_ID semMCreate(int options)
 STATUS semMGive(SEM_ID semId)
 {
     int level;
-    int newpri;
     TCB_ID tcb;
 
     if (NULL == semId || semId->semType != SEM_TYPE_MUTEX) {
@@ -79,7 +78,6 @@ STATUS semMGive(SEM_ID semId)
         if (0 == semId->recurse) {
             semId->semOwner = NULL;
             if (semId->oriPriority != tcb->priority) {
-                newpri = semId->oriPriority;
                 intUnlock(level);
                 return taskPrioritySet((tid_t)tcb, semId->oriPriority);
             }
@@ -97,12 +95,8 @@ STATUS semMTake(SEM_ID semId, int timeout)
 {
     int level;
     int newpri;
-    int grp;
-    int off;
-    int priority;
-    PriInfo_t *pri;
-    TCB_ID tcb, tcb1;
-    TLIST *node;
+    /* PriInfo_t *pri; */
+    TCB_ID tcb;
     LUOS_INFO *osInfo = osCoreInfo();
 
     if (timeout < WAIT_FOREVER) {
@@ -130,7 +124,7 @@ STATUS semMTake(SEM_ID semId, int timeout)
         intUnlock(level);
         return ERROR;
     }
-    pri = osInfo->priInfoTbl + tcb->priority;
+    /* pri = osInfo->priInfoTbl + tcb->priority; */
     list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status |= TASK_PEND;

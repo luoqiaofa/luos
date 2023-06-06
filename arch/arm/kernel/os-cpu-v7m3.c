@@ -45,7 +45,7 @@ void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
     stk->PSR = 0x01000000u;
     tcb->stack = stk;
 }
-extern int cpuIntDisable();
+extern int cpuIntDisable(void);
 extern int cpuIntEnable(int level);
 
 int intLock(void)

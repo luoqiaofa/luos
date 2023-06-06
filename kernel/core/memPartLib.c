@@ -180,12 +180,11 @@ STATUS memPartFree(PART_ID partId, void* pBlk)
 void *memObjMalloc(PART_ID partId, size_t nBytes)
 {
     void *p1;
-    void *p2;
-    void **pp;
+    /* void *p2; */
+    /* void **pp; */
     MEM_OBJ *pmem;
     MEM_BLK  *blk;
     LUOS_TCB *tcb = currentTask();
-    size_t idx;
 
     pmem = (MEM_OBJ *)memPartAlloc(partId, nBytes + sizeof(MEM_OBJ));
     if (NULL == pmem) {
@@ -222,7 +221,7 @@ void *memObjMalloc(PART_ID partId, size_t nBytes)
 STATUS memObjFree(PART_ID partId, void *ptr)
 {
     MEM_OBJ *pmem;
-    LUOS_TCB *tcb = currentTask();
+    /* LUOS_TCB *tcb = currentTask(); */
     if (NULL == partId || NULL == ptr) {
         return -1;
     }
@@ -244,10 +243,8 @@ void *malloc(size_t nbytes)
 
 void free(void *ptr)
 {
-    STATUS rc;
-
     if (memPartLibInstalled) {
-        rc = memPartFree(sysMemPartId, ptr);
+        memPartFree(sysMemPartId, ptr);
     }
 }
 

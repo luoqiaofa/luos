@@ -47,7 +47,6 @@ tid_t taskCreate(char *name, int priority, int options, int stackSize,
     LUOS_TCB *tcb = NULL;
     size_t sz;
     void *p1;
-    ULONG ulPtr;
 
     if (!taskLibInstalled) {
         return (tid_t)NULL;
@@ -83,7 +82,7 @@ tid_t taskCreate(char *name, int priority, int options, int stackSize,
     return (tid_t)tcb;
 }
 
-static int taskExit()
+static int taskExit(void)
 {
     /* semGive */
     return 0;
@@ -262,20 +261,23 @@ STATUS taskDeleteForce(tid_t tid)
 STATUS taskSuspend(tid_t tid)
 {
     LUOS_TCB *tcb;
-    int priority;
-    PriInfo_t *pri;
     int level;
 
     tcb = (LUOS_TCB *)tid;
     level = intLock();
-    pri = osInfo->priInfoTbl + tcb->priority;
     list_del(&tcb->qNodeSched);
     INIT_LIST_HEAD(&tcb->qNodeSched);
-    taskReadyRemove(tcb);
-    tcb->status |= TASK_SUSPEND;
+    if (TASK_READY == tcb->status) {
+        if (NULL == tcb->semIdOwner) {
+            taskReadyRemove(tcb);
+            tcb->status |= TASK_SUSPEND;
+            intUnlock(level);
+            coreTrySchedule();
+            return OK;
+        }
+    }
     intUnlock(level);
-    coreTrySchedule();
-    return 0;
+    return ERROR;
 }
 
 STATUS taskResume(tid_t tid)
@@ -300,8 +302,8 @@ STATUS taskResume(tid_t tid)
 
 STATUS taskRestart(tid_t tid)
 {
+    STATUS rc;
     LUOS_TCB *tcb;
-    STATUS rc = 0;
 
     tcb = (LUOS_TCB *)tid;
     if (0 == tid) {
@@ -314,7 +316,10 @@ STATUS taskRestart(tid_t tid)
     taskReadyRemove(tcb);
     rc = taskInit(tcb, tcb->name, tcb->priority, tcb->options, tcb->stkBase,
             tcb->stkSize, tcb->taskEntry, tcb->param);
-    return taskActivate((tid_t)tcb);
+    if (OK == rc) {
+        return taskActivate((tid_t)tcb);
+    }
+    return rc;
 }
 
 STATUS taskPrioritySet(tid_t tid, int newPriority)
@@ -388,7 +393,10 @@ STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
                         while (1) {/* hang up here */};
                     }
                     if (tcb->priority >= tcb1->priority) {
-                        list_add_tail(&tcb->qNodePend, node);
+                        /* list_add_tail(&tcb->qNodePend, node); */
+                        tcb->qNodePend.next = node->next;
+                        tcb->qNodePend.prev = node;
+                        node->next = &tcb->qNodePend;
                         break;
                     }
                 }
@@ -401,7 +409,6 @@ STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
 STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
 {
     TCB_ID tcb1;
-    TLIST *node;
     PriInfo_t *pri;
     LUOS_INFO *osInfo = osCoreInfo();
 

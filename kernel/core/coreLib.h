@@ -83,15 +83,15 @@ typedef struct luosInfo {
     BOOL      schedLocked;
     cpudata_t intNestedCnt;
     cpudata_t sysTicksCnt;
-    ULONG     conTextCnt;
+    ULONG     contextCnt;
 } LUOS_INFO;
 
-extern volatile LUOS_INFO __osinfo__;
-static inline LUOS_TCB* currentTask() {
+extern LUOS_INFO __osinfo__;
+static inline LUOS_TCB* currentTask(void) {
     return __osinfo__.currentTcb;
 }
 
-static inline LUOS_INFO* osCoreInfo() {
+static inline LUOS_INFO* osCoreInfo(void) {
     return &__osinfo__;
 }
 
@@ -153,11 +153,13 @@ static inline void taskReadyAdd(TCB_ID tcb)
 extern STATUS coreLibInit(void);
 extern void * osMemAlloc(size_t nbytes);
 extern STATUS osMemFree(void *ptr);
-extern void coreTrySchedule();
-STATUS coreTickDoing();
+extern void coreTrySchedule(void);
+STATUS coreTickDoing(void);
 extern STATUS sysClkRateSet(int ticksPerSecond);
 extern int sysClkRateGet(void);
-
+extern uint32_t sysClkTicksGet(void);
+void coreIntEnter(void);
+void coreIntExit(void);
 
 #endif /* #ifndef __OSCORE_H__ */
 

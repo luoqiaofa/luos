@@ -53,21 +53,9 @@ LOCAL struct sem_ops semOpsTbl[SEM_TYPE_MAX] = {
 };
 LOCAL BOOL semLibInstalled = false;
 
-STATUS semLibInit()
+STATUS semLibInit(void)
 {
-    int idx;
-
     if (!semLibInstalled) {
-#if 0
-        memset(semOpsTbl, 0, sizeof(semOpsTbl));
-        for (idx = 0; idx < ARRAY_SIZE(semOpsTbl); idx++) {
-            semOpsTbl[idx].psemGive       = (semGive_t)semInvalid;
-            semOpsTbl[idx].psemTake       = (semTake_t)semInvalid;
-            semOpsTbl[idx].psemFlush      = (semFlush_t)semInvalid;
-            semOpsTbl[idx].psemGiveDefer  = (semGiveDefer_t)semInvalid;
-            semOpsTbl[idx].psemFlushDefer = (semFlushDefer_t)semInvalid;
-        }
-#endif
         semLibInstalled = true;
     }
     return semLibInstalled ? OK : ERROR;
@@ -106,7 +94,7 @@ STATUS semInvalid(SEM_ID id) {
 
 STATUS semGive(SEM_ID id)
 {
-    if (id->semType >= SEM_TYPE_MAX) {
+    if (NULL == id || id->semType >= SEM_TYPE_MAX) {
         return ERROR;
     }
     return semOpsTbl[id->semType].psemGive(id);
@@ -114,7 +102,7 @@ STATUS semGive(SEM_ID id)
 
 STATUS semTake(SEM_ID id, int timeout)
 {
-    if (id->semType >= SEM_TYPE_MAX) {
+    if (NULL == id || id->semType >= SEM_TYPE_MAX) {
         return ERROR;
     }
     return semOpsTbl[id->semType].psemTake(id, timeout);
@@ -123,7 +111,7 @@ STATUS semTake(SEM_ID id, int timeout)
 
 STATUS semFlush(SEM_ID id)
 {
-    if (id->semType >= SEM_TYPE_MAX) {
+    if (NULL == id || id->semType >= SEM_TYPE_MAX) {
         return ERROR;
     }
     return semOpsTbl[id->semType].psemFlush(id);
@@ -131,7 +119,7 @@ STATUS semFlush(SEM_ID id)
 
 STATUS semGiveDefer(SEM_ID id)
 {
-    if (id->semType >= SEM_TYPE_MAX) {
+    if (NULL == id || id->semType >= SEM_TYPE_MAX) {
         return ERROR;
     }
     if (NULL != semOpsTbl[id->semType].psemGiveDefer) {
@@ -142,7 +130,7 @@ STATUS semGiveDefer(SEM_ID id)
 
 STATUS semFlushDefer(SEM_ID id)
 {
-    if (id->semType >= SEM_TYPE_MAX) {
+    if (NULL == id || id->semType >= SEM_TYPE_MAX) {
         return ERROR;
     }
     if (NULL != semOpsTbl[id->semType].psemFlushDefer) {
@@ -153,11 +141,17 @@ STATUS semFlushDefer(SEM_ID id)
 
 STATUS semDestroy(SEM_ID semId, BOOL dealloc)
 {
+    if (NULL == semId || semId->semType >= SEM_TYPE_MAX) {
+        return ERROR;
+    }
     return 0;
 }
 
 STATUS semDelete(SEM_ID semId)
 {
+    if (NULL == semId || semId->semType >= SEM_TYPE_MAX) {
+        return ERROR;
+    }
     return semDestroy(semId, true);
 }
 

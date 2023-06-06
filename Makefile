@@ -5,7 +5,7 @@ export CPP := $(CROSS_COMPILE)gcc -E
 export CXX := $(CROSS_COMPILE)g++
 export AS  := $(CROSS_COMPILE)as
 
-CFLAGS_OPTIONS  := -g -O1
+CFLAGS_OPTIONS  := -g -O1 -mlittle-endian -Wall -Wundef -Wstrict-prototypes -std=gnu99
 CFLAGS_DEFINES  := -DLUOS
 CFLAGS_INCLUDES := -I kernel/core \
 	               -I include \
@@ -16,6 +16,7 @@ CFLAGS_INCLUDES := -I kernel/core \
 CFLAGS := $(CFLAGS_OPTIONS) $(CFLAGS_DEFINES) $(CFLAGS_INCLUDES)
 
 srcs := \
+	$(wildcard init/*.c) \
 	$(wildcard kernel/core/*.c) \
 	$(wildcard arch/$(ARCH)/*.c) \
 	$(wildcard arch/$(ARCH)/kernel/*.c)

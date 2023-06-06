@@ -4,6 +4,8 @@
  * Linux/arm 4.1.15 Kernel Configuration
  *
  */
+#define CONFIG_SYS_CBSIZE 512
+#define CONFIG_CMDLINE_EDITING 1
 #define CONFIG_HAVE_ARCH_SECCOMP_FILTER 1
 #define CONFIG_SCSI_DMA 1
 #define CONFIG_PINCTRL_IMX7D 1
