@@ -1,0 +1,16 @@
+*.i
+*.d
+*.o
+*.dep
+*.htm
+*.axf
+*.lnp
+*.crf
+*.sct
+*.map
+*.mine
+*.uvoptx
+out
+Project/RVMDK/Listings/
+Project/RVMDK/Objects/
+Project/RVMDK/DebugConfig/
