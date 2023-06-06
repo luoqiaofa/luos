@@ -1267,7 +1267,7 @@ static int symLookup(char *name)
             pTbl = ptlibSym->SymTblBase + lp;
             if (NULL != strstr(pTbl->name, name)) {
                 ret = 0;
-                sys_printf("%s\n", pTbl->name);
+                sys_printf("%s", pTbl->name);
             }
         }
         ptlibSym = ptlibSym->ptNext;
