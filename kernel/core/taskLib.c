@@ -19,6 +19,7 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
+#include <stdio.h>
 #include "coreLib.h"
 
 LOCAL LUOS_INFO * osInfo = &__osinfo__;
@@ -82,9 +83,20 @@ tid_t taskCreate(char *name, int priority, int options, int stackSize,
     return (tid_t)tcb;
 }
 
-static int taskExit(void)
+static int taskReturn(void)
 {
+    TCB_ID tcb;
+    int level;
     /* semGive */
+    tcb = currentTask();
+    // printf("task[%s]tid=%p, exit!\n", tcb->name, tcb);
+    level = intLock();
+    list_del(&tcb->qNodeSched);
+    taskReadyRemove(tcb);
+    tcb->status = TASK_DEAD;
+    intUnlock(level);
+    semFlush(&tcb->semJoinExit);
+    coreTrySchedule();
     return 0;
 }
 
@@ -141,7 +153,8 @@ STATUS taskInit(LUOS_TCB *tcb, char *name, int priority, int options,
 
     taskListInit(tcb);
 
-    cpuStackInit(tcb, taskExit);
+    cpuStackInit(tcb, taskReturn);
+    semCInit(&tcb->semJoinExit, 0, 0);
     return 0;
 }
 
@@ -343,10 +356,11 @@ STATUS taskPrioritySet(tid_t tid, int newPriority)
         if (tcb == currentTask()) {
             list_add(&tcb->qNodeSched, &pri->qReadyHead);
         } else {
-            list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+            list_add(&tcb->qNodeSched, &pri->qReadyHead);
         }
         taskReadyAdd(tcb);
         intUnlock(level);
+        coreTrySchedule();
         return OK;
     }
     tcb->priority = newPriority;
@@ -356,6 +370,7 @@ STATUS taskPrioritySet(tid_t tid, int newPriority)
         taskPendQuePut(tcb, semId);
     }
     intUnlock(level);
+    coreTrySchedule();
     return OK;
 }
 
@@ -425,7 +440,7 @@ STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
         if (SCHED_RR == pri->schedPolicy) {
             tcb1->sliceTicksCnt = 0;
         }
-        list_add_tail(&tcb1->qNodeSched, &pri->qReadyHead);
+        list_add(&tcb1->qNodeSched, &pri->qReadyHead);
         taskReadyAdd(tcb1);
         if (tcb1->priority < tcb->priority) {
             switch (semId->semType) {

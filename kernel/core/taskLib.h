@@ -50,6 +50,7 @@ typedef struct luosTcb {
     TLIST     qNodePend;       /* for mutex,msgqueue,semphore,suspend cause to be pended. etc */
     SEM_ID    semIdPended;
     SEM_ID    semIdOwner;
+    SEMAPHORE semJoinExit;
     int32_t   priNormal;
     int32_t   priDynamic;
     int32_t   sliceTicksCnt; /* count the ticks for slice */
