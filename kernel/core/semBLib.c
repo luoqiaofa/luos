@@ -28,9 +28,9 @@ STATUS semBLibInit()
     SEM_OPS semOps = {
         .psemGive       = (semGive_t)semBGive,
         .psemTake       = (semTake_t)semBTake,
-        .psemFlush      = (semGive_t)semFlush,
-        .psemGiveDefer  = (semGive_t)semGiveDefer,
-        .psemFlushDefer = (semGive_t)semFlushDefer,
+        .psemFlush      = (semGive_t)NULL,
+        .psemGiveDefer  = (semGive_t)NULL,
+        .psemFlushDefer = (semGive_t)NULL,
     };
     semTypeInit(SEM_TYPE_BINARY, &semOps);
     if (OK == semLibInit()) {

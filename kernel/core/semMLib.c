@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : semMLib.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-29 06:20:46 PM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-29
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -28,9 +28,9 @@ STATUS semMLibInit()
     SEM_OPS semOps = {
         .psemGive       = (semGive_t)semMGive,
         .psemTake       = (semTake_t)semMTake,
-        .psemFlush      = (semFlush_t)semFlush,
-        .psemGiveDefer  = (semGiveDefer_t)semGiveDefer,
-        .psemFlushDefer = (semFlushDefer_t)semFlushDefer
+        .psemFlush      = (semFlush_t)NULL,
+        .psemGiveDefer  = (semGiveDefer_t)NULL,
+        .psemFlushDefer = (semFlushDefer_t)NULL
     };
     semTypeInit(SEM_TYPE_MUTEX, &semOps);
     if (OK == semLibInit()) {
@@ -68,7 +68,7 @@ STATUS semMGive(SEM_ID semId)
     if (NULL == semId || semId->semType != SEM_TYPE_MUTEX) {
         return ERROR;
     }
- 
+
     level = intLock();
     tcb = currentTask();
     if (tcb == semId->semOwner) {
@@ -93,6 +93,7 @@ STATUS semMGive(SEM_ID semId)
 
 STATUS semMTake(SEM_ID semId, int timeout)
 {
+    int rc;
     int level;
     int newpri;
     /* PriInfo_t *pri; */
@@ -102,6 +103,7 @@ STATUS semMTake(SEM_ID semId, int timeout)
     if (timeout < WAIT_FOREVER) {
         return ERROR;
     }
+agin:
     level = intLock();
     tcb = currentTask();
     if (NULL == semId->semOwner) {
@@ -127,6 +129,7 @@ STATUS semMTake(SEM_ID semId, int timeout)
     /* pri = osInfo->priInfoTbl + tcb->priority; */
     list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
+    tcb->errCode = 0;
     tcb->status |= TASK_PEND;
     if (WAIT_FOREVER != timeout) {
         tcb->dlyTicks = timeout;
@@ -138,14 +141,16 @@ STATUS semMTake(SEM_ID semId, int timeout)
     taskPendQuePut(tcb, semId);
     if (semId->semOwner->priority > tcb->priority) {
         newpri = tcb->priority;
-        tcb = semId->semOwner;
         intUnlock(level);
-        return taskPrioritySet((tid_t)tcb, newpri);
+        rc = taskPrioritySet((tid_t)(semId->semOwner), newpri);
     } else {
-        coreTrySchedule();
         intUnlock(level);
-        return tcb->errCode;
+        coreTrySchedule();
     }
-    return OK;
+    rc = tcb->errCode;
+    if (OK == rc) {
+        goto agin;
+    }
+    return rc;
 }
 

@@ -28,9 +28,9 @@ STATUS semCLibInit()
     SEM_OPS semOps = {
         .psemGive       = (semGive_t)semCGive,
         .psemTake       = (semTake_t)semCTake,
-        .psemFlush      = (semGive_t)semFlush,
-        .psemGiveDefer  = (semGive_t)semGiveDefer,
-        .psemFlushDefer = (semGive_t)semFlushDefer
+        .psemFlush      = (semGive_t)NULL,
+        .psemGiveDefer  = (semGive_t)NULL,
+        .psemFlushDefer = (semGive_t)NULL
     };
     semTypeInit(SEM_TYPE_COUNT, &semOps);
     if (OK == semLibInit()) {
@@ -131,3 +131,51 @@ again:
     return tcb->errCode;
 }
 
+STATUS semCFlush(SEM_ID id)
+{
+    int num = 0;
+    int level;
+    TLIST *node, *n2;
+    TCB_ID tcb;
+    PriInfo_t *pri;
+    if (NULL == id || SEM_TYPE_COUNT != id->semType) {
+        return ERROR;
+    }
+
+    if (list_empty(&id->qPendHead)) {
+        return OK;
+    }
+    n2 = NULL;
+    level = intLock();
+    list_for_each(node, &id->qPendHead) {
+        num++;
+        if (NULL != n2) {
+            list_del(n2);
+            tcb = list_entry(n2, LUOS_TCB, qNodePend);
+            tcb->status &= ~(TASK_PEND | TASK_DELAY);
+            if (TASK_READY == tcb->status) {
+                list_del(&tcb->qNodeSched);
+                pri = osCoreInfo()->priInfoTbl + tcb->priority;
+                list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+                taskReadyAdd(tcb);
+            }
+            n2 = NULL;
+        }
+        n2 = node;
+    }
+    if (NULL != n2) {
+        list_del(n2);
+        tcb = list_entry(n2, LUOS_TCB, qNodePend);
+        tcb->status &= ~(TASK_PEND | TASK_DELAY);
+        if (TASK_READY == tcb->status) {
+            list_del(&tcb->qNodeSched);
+            pri = osCoreInfo()->priInfoTbl + tcb->priority;
+            list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+            taskReadyAdd(tcb);
+        }
+        n2 = NULL;
+    }
+    id->semCount = num;
+    intUnlock(level);
+    return OK;
+}
