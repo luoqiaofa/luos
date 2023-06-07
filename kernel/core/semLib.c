@@ -111,10 +111,60 @@ STATUS semTake(SEM_ID id, int timeout)
 
 STATUS semFlush(SEM_ID id)
 {
+    int num = 0;
+    int level;
+    TLIST *node, *n2;
+    TCB_ID tcb;
+    PriInfo_t *pri;
+
     if (NULL == id || id->semType >= SEM_TYPE_MAX) {
         return ERROR;
     }
-    return semOpsTbl[id->semType].psemFlush(id);
+
+    if (NULL != semOpsTbl[id->semType].psemFlush) {
+        if (semFlush != semOpsTbl[id->semType].psemFlush) {
+            return semOpsTbl[id->semType].psemFlush(id);
+        }
+    }
+    if (list_empty(&id->qPendHead)) {
+        return OK;
+    }
+    n2 = NULL;
+    level = intLock();
+    list_for_each(node, &id->qPendHead) {
+        num++;
+        if (NULL != n2) {
+            list_del(n2);
+            tcb = list_entry(n2, LUOS_TCB, qNodePend);
+            tcb->status &= ~(TASK_PEND | TASK_DELAY);
+            if (TASK_READY == tcb->status) {
+                list_del(&tcb->qNodeSched);
+                pri = osCoreInfo()->priInfoTbl + tcb->priority;
+                list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+                taskReadyAdd(tcb);
+            }
+            n2 = NULL;
+        }
+        n2 = node;
+    }
+    if (NULL != n2) {
+        list_del(n2);
+        tcb = list_entry(n2, LUOS_TCB, qNodePend);
+        tcb->status &= ~(TASK_PEND | TASK_DELAY);
+        if (TASK_READY == tcb->status) {
+            list_del(&tcb->qNodeSched);
+            pri = osCoreInfo()->priInfoTbl + tcb->priority;
+            list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+            taskReadyAdd(tcb);
+        }
+        n2 = NULL;
+    }
+    if (SEM_TYPE_COUNT == id->semType) {
+        id->semCount = num;
+    }
+    intUnlock(level);
+    coreTrySchedule(); 
+    return OK;
 }
 
 STATUS semGiveDefer(SEM_ID id)

@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : semLib.h
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-26 02:22:05 PM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-26
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -23,7 +23,7 @@
 
 #define NO_WAIT         0
 #define WAIT_FOREVER    (-1)
-    
+
 
 extern STATUS semGive (SEM_ID semId);
 extern STATUS semTake (SEM_ID semId, int timeout);
@@ -39,7 +39,9 @@ extern STATUS semBLibInit (void);
 extern SEM_ID semBCreate (int options, SEM_B_STATE initialState);
 extern STATUS semCLibInit (void);
 extern SEM_ID semCCreate (int options, int initialCount);
+extern STATUS semCInit(SEM_ID semId, int options, int initialCount);
 extern STATUS semMLibInit (void);
+extern STATUS semMInit(SEM_ID semId, int options);
 extern SEM_ID semMCreate (int options);
 extern STATUS semMGiveForce (SEM_ID semId);
 extern STATUS semOLibInit (void);
