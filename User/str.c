@@ -91,6 +91,9 @@ bool isValidNumber(const char *s)
     }
     if ('0' == *s) {
         s++;
+        if ('\0' == *s) {
+            return true;
+        }
         ch = tolower(*s);
         if ('x' == ch || 'o' == ch || 'b' == ch || 'd' == ch) {
             if (!s[1]) {return false;}
