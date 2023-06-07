@@ -96,4 +96,11 @@ USART1_IRQHandler PROC
     BX      LR
     ENDP
 
+cpuRunningTaskStkGet PROC
+    EXPORT cpuRunningTaskStkGet
+    MRS R0, PSP
+    BX  LR
+    ENDP
+
+
 END

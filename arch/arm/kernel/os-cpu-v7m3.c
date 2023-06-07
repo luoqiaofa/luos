@@ -19,6 +19,7 @@
 /******************************************************************************
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
+#include <stdio.h>
 #include "coreLib.h"
 
 void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
@@ -91,3 +92,32 @@ void cpuIntContextSwitchTrig(register void* cur, register void* tcb_high)
     NVIC_INT_CTRL = NVIC_PENDSVSET;
 }
 #endif
+
+void HardFault_Handler(void)
+{
+    M3_INT_STK *stk;
+
+    stk = (M3_INT_STK *)cpuRunningTaskStkGet();
+    printf("task[%s]\n"
+    "R0 =0x%08x\n"
+    "R1 =0x%08x\n"
+    "R2 =0x%08x\n"
+    "R3 =0x%08x\n"
+    "R12=0x%08x\n"
+    "LR =0x%08x\n"
+    "PC =0x%08x\n"
+    "PSR=0x%08x\n",
+    taskName(taskIdSelf()),
+    stk->R0,
+    stk->R1,
+    stk->R2,
+    stk->R3,
+    stk->R12,
+    stk->LR,
+    stk->PC,
+    stk->PSR);
+    while (1) {
+    }
+}
+
+
