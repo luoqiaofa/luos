@@ -20,15 +20,20 @@
  *                #include (依次为标准库头文件、非标准库头文件)               *
  ******************************************************************************/
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdarg.h>
+
 #include "coreLib.h"
 
 extern int usrSymInit(void);
 extern int sysSymTblInit(void);
 extern int shellCmdlineProcess(char *cmdline);
+int Printf(const char *fmt, ...);
+
 
 extern int version(void);
 LOCAL SEM_ID semId;
+SEMAPHORE  semMuxprint;
+
 void *taskRtn2(void *arg);
 extern void USARTx_Config(void);
 extern char * readline(const char *const prompt);
@@ -40,13 +45,24 @@ void *taskIdle(void *arg) {
     };
 }
 
-
+static SEM_ID semIds[9];
 volatile UINT cpuStatusCnt = 0;
 void *taskStatus(void *arg) {
+    Printf("[%s]Join enter\n", taskName(taskIdSelf()));
+    semTake(semIds[0], WAIT_FOREVER);
+    Printf("[%s]Join exit\n", taskName(taskIdSelf()));
     while (true) {
         cpuStatusCnt++;
-        // taskDelay(1);
+        taskDelay(1);
     };
+}
+
+void *taskOneshort(void *arg)
+{
+    Printf("[%s] enter!\n", taskName(taskIdSelf()));
+    taskDelay(sysClkRateGet());
+    Printf("[%s] exit!\n", taskName(taskIdSelf()));
+    return NULL;
 }
 
 extern void LED_Init ( void );
@@ -54,20 +70,33 @@ extern void ledToggle(void);
 int dbg_print = 0;
 void *taskRtn1(void *arg)
 {
+    tid_t tid;
+    TCB_ID tcb;
     int cnt = 0;
+    char tname[20] = "tOne";
 
     sysClkRateSet(CONFIG_HZ);
 
     taskSpawn("t2",     10, 0, 1024, taskRtn2, semId);
     taskSpawn("tIdle", 255, 0, 512,  taskIdle, NULL);
-    taskSpawn("tStat", 255, 0, 512,  taskStatus, NULL);
+    taskSpawn("tStat", 252, 0, 512,  taskStatus, NULL);
+    for (cnt = 0; cnt < 9; cnt++) {
+        tname[4] = '1' + cnt;
+        tid = taskSpawn(tname,  253, 0, 512,  taskOneshort, NULL);
+        tcb = (TCB_ID)tid;
+        semIds[cnt] = &(tcb->semJoinExit);
+        if (tid == (tid_t)0) {
+            Printf("task %s created failed\n", tname);
+        }
+    }
 
+    cnt = 0;
 	LED_Init();
     while(true) {
         cnt++;
         ledToggle();
         if (dbg_print) {
-		    printf("[%s]cnt=%d\n", taskName(taskIdSelf()), cnt);
+		    Printf("[%s]cnt=%d\n", taskName(taskIdSelf()), cnt);
 		}
         semGive(semId);
         taskDelay(sysClkRateGet());
@@ -96,10 +125,10 @@ void *taskRtn2(void *arg)
         len = strlen(cmdline);
         if (len > 0) {
             if (dbg_print) {
-                printf("len=%d,cmdline=%s\n", len, cmdline);
+                Printf("len=%d,cmdline=%s\n", len, cmdline);
             }
             retVal = shellCmdlineProcess(cmdline);
-            printf("retVal=%d(0x%0x)\n", retVal, retVal);
+            Printf("retVal=%d(0x%0x)\n", retVal, retVal);
         }
         // semTake(id, WAIT_FOREVER);
         // taskDelay(2);
@@ -125,6 +154,7 @@ int main (int argc, char *argv[])
     semCLibInit();
     semMLibInit();
     semBLibInit();
+    semMInit(&semMuxprint, 0);
 
     semId = semCCreate(SEM_Q_PRIORITY, 0);
     if (NULL == semId) {
@@ -142,6 +172,49 @@ int main (int argc, char *argv[])
     }
     while (true) {
     }
-    return EXIT_SUCCESS;
+    return 0;
 }                /* ----------  end of function main  ---------- */
+
+
+#ifndef CONFIG_SYS_PBSIZE
+#define CONFIG_SYS_PBSIZE	(CONFIG_SYS_CBSIZE + 128)
+#endif
+
+int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
+{
+	int i;
+
+	i = vsnprintf(buf, size, fmt, args);
+
+	if (i < size)
+		return i;
+	if (size != 0)
+		return size - 1;
+	return 0;
+}
+
+
+int Printf(const char *fmt, ...)
+{
+	va_list args;
+	uint32_t i;
+
+	static char printbuffer[CONFIG_SYS_PBSIZE];
+
+    semTake(&semMuxprint, WAIT_FOREVER);
+	va_start(args, fmt);
+
+	/*
+	 * For this to work, printbuffer must be larger than
+	 * anything we ever want to print.
+	 */
+	printbuffer[0] = '\0';
+	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
+	va_end(args);
+
+	/* Print the string */
+	puts(printbuffer);
+	semGive(&semMuxprint);
+	return i;
+}
 
