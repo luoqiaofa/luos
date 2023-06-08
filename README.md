@@ -21,14 +21,14 @@
       <p>
 
       ![image](https://github.com/luoqiaofa/luos/assets/11310157/7d1e3c88-02a2-49f4-802b-ebbed429510b)
-<p>
+      <p>
 
-查找命令示例如下
+      查找命令示例如下<p>
 
-![image](https://github.com/luoqiaofa/luos/assets/11310157/5eb567a5-6c89-4404-a066-2ed808b90373)
+      ![image](https://github.com/luoqiaofa/luos/assets/11310157/5eb567a5-6c89-4404-a066-2ed808b90373)
     
-命令(符号表)查找命令示例如下:
-![image](https://github.com/luoqiaofa/luos/assets/11310157/d885b1e9-f1a1-4f71-9fae-1e48e6d0dd1e)
+      命令(符号表)查找命令示例如下:<p>
+      ![image](https://github.com/luoqiaofa/luos/assets/11310157/d885b1e9-f1a1-4f71-9fae-1e48e6d0dd1e)
 
 
 
