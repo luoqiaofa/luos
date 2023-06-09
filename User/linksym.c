@@ -3,7 +3,6 @@
 
 extern int console_buffer[];
 extern int semMuxprint[];
-extern int consoleSemId[];
 extern int cpuIdleCnt[];
 extern int cpuStatusCnt[];
 extern int dbg_print[];
@@ -128,7 +127,6 @@ static const TsymPara g_symTbl[] =
     {"USARTx_Config"                 , SYM_TYPE_T, USARTx_Config},
     {"cli_readline"                  , SYM_TYPE_T, cli_readline},
     {"cli_readline_into_buffer"      , SYM_TYPE_T, cli_readline_into_buffer},
-    {"consoleSemId"                  , SYM_TYPE_D, consoleSemId},
     {"console_buffer"                , SYM_TYPE_B, console_buffer},
     {"coreContextHook"               , SYM_TYPE_T, coreContextHook},
     {"coreIntEnter"                  , SYM_TYPE_T, coreIntEnter},

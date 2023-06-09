@@ -161,6 +161,7 @@ extern uint32_t sysClkTicksGet(void);
 void coreIntEnter(void);
 void coreIntExit(void);
 extern STATUS i(void);
+extern STATUS tickQWorkDoing(void);
 extern void tickAnnounce(void);
 extern STATUS luosStart(void);
 

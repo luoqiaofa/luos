@@ -118,6 +118,7 @@ STATUS tickQWorkDoing(void)
         num++;
         numTocksQWork--;
     }
+    /* maybe need ched 0 == numTocksQWork or not for overflow */
     return num;
 }
 
@@ -207,7 +208,9 @@ void coreTrySchedule(void)
         return ;
     }
     level = intLock();
-    tickQWorkDoing();
+    if (0 == osInfo->intNestedCnt) {
+        tickQWorkDoing();
+    }
 
     grp = cpuCntLeadZeros(osInfo->readyPriGrp);
     if (grp >= NLONG_PRIORITY) {
@@ -225,11 +228,16 @@ void coreTrySchedule(void)
     }
     tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
     if ((NULL == currentTask()) || currentTask() != tcb) {
-        osInfo->highestTcb = tcb;
         /* start scheduled */
         if (NULL == currentTask()) {
             osInfo->currentTcb = tcb;
         }
+        if (currentTask()->lockCnt > 0) {
+            osInfo->highestTcb = currentTask();
+            intUnlock(level);
+            return;
+        }
+        osInfo->highestTcb = tcb;
         if (0 == osInfo->intNestedCnt) {
             intUnlock(level);
             cpuTaskContextSwitchTrig(currentTask(), tcb);
