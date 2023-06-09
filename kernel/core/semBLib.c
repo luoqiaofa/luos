@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : semBLib.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-29 04:42:29 PM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-29
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -47,7 +47,20 @@ STATUS semBInit(SEM_ID semId, int options, SEM_B_STATE initialState)
     memset(semId, 0, sizeof(*semId));
     semId->semType  = SEM_TYPE_BINARY;
     semId->options  = options;
-    semId->semCount = initialState;
+
+    switch(initialState) {
+        case SEM_EMPTY:
+            semId->semOwner = currentTask();
+        break;
+        case SEM_FULL:
+            semId->semOwner = NULL;
+            break;
+        default:
+            return ERROR;
+        break;
+    }
+
+
     return semQInit(semId, options);
 }
 
@@ -78,14 +91,14 @@ STATUS semBGive(SEM_ID semId)
     if (SEM_EMPTY != semId->recurse && SEM_FULL != semId->recurse) {
         return ERROR;
     }
-    
+
+    if (NULL == semId->semOwner) {
+        return OK;
+    }
     level = intLock();
     tcb = currentTask();
     if (tcb == semId->semOwner) {
-        if (SEM_EMPTY == semId->recurse) {
-            semId->recurse = SEM_FULL;
-            semId->semOwner = NULL;
-        }
+        semId->semOwner = NULL;
         if (list_empty(&semId->qPendHead)) {
             intUnlock(level);
             return OK;
@@ -96,7 +109,7 @@ STATUS semBGive(SEM_ID semId)
         intUnlock(level);
         return OK;
     }
-    return OK;
+    return ERROR;
 }
 
 STATUS semBTake(SEM_ID semId, int timeout)
@@ -106,20 +119,24 @@ STATUS semBTake(SEM_ID semId, int timeout)
     TCB_ID tcb;
     LUOS_INFO *osInfo = osCoreInfo();
 
-    if (SEM_EMPTY != semId->recurse && SEM_FULL != semId->recurse) {
+    if (NULL == semId || SEM_TYPE_BINARY != semId->semType) {
         return ERROR;
     }
     if (timeout < WAIT_FOREVER) {
         return ERROR;
     }
-    level = intLock();
+again:
     tcb = currentTask();
+    if (tcb == semId->semOwner) {
+        return OK;
+    }
+    level = intLock();
     if (NULL == semId->semOwner) {
         semId->semOwner = tcb;
-        semId->recurse  = SEM_EMPTY;
         intUnlock(level);
         return OK;
     }
+
     if (NO_WAIT == timeout) {
         intUnlock(level);
         return ERROR;
@@ -136,8 +153,12 @@ STATUS semBTake(SEM_ID semId, int timeout)
         list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
     }
     taskPendQuePut(tcb, semId);
-    coreTrySchedule();
     intUnlock(level);
+    coreTrySchedule();
+    if (OK == tcb->errCode) {
+        goto again;
+    }
+
     return tcb->errCode;
 }
 

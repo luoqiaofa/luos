@@ -2,6 +2,7 @@
 #include "libSym.h"
 
 extern int console_buffer[];
+extern int semMuxprint[];
 extern int consoleSemId[];
 extern int cpuIdleCnt[];
 extern int cpuStatusCnt[];
@@ -16,8 +17,9 @@ extern void * coreLibInit(void);
 extern void * coreTickDoing(void);
 extern void * coreTrySchedule(void);
 extern void * cpuCntLeadZeros(void);
-extern void * cpuIntDisable(void);
-extern void * cpuIntEnable(void);
+extern void * cpuIntLock(void);
+extern void * cpuIntUnlock(void);
+extern void * cpuRunningTaskStkGet(void);
 extern void * cpuStackInit(void);
 extern void * cpuSysTicksConfig(void);
 extern void * cpuTaskContextSwitchTrig(void);
@@ -26,6 +28,7 @@ extern void * GPIO_Init(void);
 extern void * GPIO_ReadOutputDataBit(void);
 extern void * GPIO_ResetBits(void);
 extern void * GPIO_SetBits(void);
+extern void * i(void);
 extern void * intLock(void);
 extern void * intUnlock(void);
 extern void * isValidNumber(void);
@@ -38,6 +41,7 @@ extern void * memPartLibInit(void);
 extern void * NVIC_Init(void);
 extern void * osMemAlloc(void);
 extern void * osMemFree(void);
+extern void * Printf(void);
 extern void * putc(void);
 extern void * puts(void);
 extern void * RCC_APB2PeriphClockCmd(void);
@@ -58,6 +62,7 @@ extern void * semGiveDefer(void);
 extern void * semInvalid(void);
 extern void * semLibInit(void);
 extern void * semMGive(void);
+extern void * semMInit(void);
 extern void * semMLibInit(void);
 extern void * semMTake(void);
 extern void * semQInit(void);
@@ -68,11 +73,11 @@ extern void * strToInt(void);
 extern void * sysClkRateGet(void);
 extern void * sysClkRateSet(void);
 extern void * sysClkTicksGet(void);
+extern void * SysReset(void);
 extern void * SystemInit(void);
 extern void * taskActivate(void);
 extern void * taskCreate(void);
 extern void * taskDelay(void);
-extern void * taskIdle(void);
 extern void * taskIdSelf(void);
 extern void * taskInit(void);
 extern void * taskLibInit(void);
@@ -80,10 +85,8 @@ extern void * taskName(void);
 extern void * taskPendQueGet(void);
 extern void * taskPendQuePut(void);
 extern void * taskPrioritySet(void);
-extern void * taskRtn1(void);
-extern void * taskRtn2(void);
 extern void * taskSpawn(void);
-extern void * taskStatus(void);
+extern void * taskStatusStr(void);
 extern void * tolower(void);
 extern void * tstc(void);
 extern void * UART_Receive(void);
@@ -97,6 +100,7 @@ extern void * USART_ITConfig(void);
 extern void * USART_ReceiveData(void);
 extern void * USART_SendData(void);
 extern void * version(void);
+extern void * vscnprintf(void);
 
 static const TsymPara g_symTbl[] =
 {
@@ -107,8 +111,10 @@ static const TsymPara g_symTbl[] =
     {"GPIO_SetBits"                  , SYM_TYPE_T, GPIO_SetBits},
     {"LED_Init"                      , SYM_TYPE_T, LED_Init},
     {"NVIC_Init"                     , SYM_TYPE_T, NVIC_Init},
+    {"Printf"                        , SYM_TYPE_T, Printf},
     {"RCC_APB2PeriphClockCmd"        , SYM_TYPE_T, RCC_APB2PeriphClockCmd},
     {"RCC_GetClocksFreq"             , SYM_TYPE_T, RCC_GetClocksFreq},
+    {"SysReset"                      , SYM_TYPE_T, SysReset},
     {"SystemInit"                    , SYM_TYPE_T, SystemInit},
     {"UART_Receive"                  , SYM_TYPE_T, UART_Receive},
     {"USART_ClearITPendingBit"       , SYM_TYPE_T, USART_ClearITPendingBit},
@@ -132,14 +138,16 @@ static const TsymPara g_symTbl[] =
     {"coreTrySchedule"               , SYM_TYPE_T, coreTrySchedule},
     {"cpuCntLeadZeros"               , SYM_TYPE_T, cpuCntLeadZeros},
     {"cpuIdleCnt"                    , SYM_TYPE_D, cpuIdleCnt},
-    {"cpuIntDisable"                 , SYM_TYPE_T, cpuIntDisable},
-    {"cpuIntEnable"                  , SYM_TYPE_T, cpuIntEnable},
+    {"cpuIntLock"                    , SYM_TYPE_T, cpuIntLock},
+    {"cpuIntUnlock"                  , SYM_TYPE_T, cpuIntUnlock},
+    {"cpuRunningTaskStkGet"          , SYM_TYPE_T, cpuRunningTaskStkGet},
     {"cpuStackInit"                  , SYM_TYPE_T, cpuStackInit},
     {"cpuStatusCnt"                  , SYM_TYPE_D, cpuStatusCnt},
     {"cpuSysTicksConfig"             , SYM_TYPE_T, cpuSysTicksConfig},
     {"cpuTaskContextSwitchTrig"      , SYM_TYPE_T, cpuTaskContextSwitchTrig},
     {"dbg_print"                     , SYM_TYPE_D, dbg_print},
     {"getc"                          , SYM_TYPE_T, getc},
+    {"i"                             , SYM_TYPE_T, i},
     {"intLock"                       , SYM_TYPE_T, intLock},
     {"intUnlock"                     , SYM_TYPE_T, intUnlock},
     {"isValidNumber"                 , SYM_TYPE_T, isValidNumber},
@@ -168,8 +176,10 @@ static const TsymPara g_symTbl[] =
     {"semInvalid"                    , SYM_TYPE_T, semInvalid},
     {"semLibInit"                    , SYM_TYPE_T, semLibInit},
     {"semMGive"                      , SYM_TYPE_T, semMGive},
+    {"semMInit"                      , SYM_TYPE_T, semMInit},
     {"semMLibInit"                   , SYM_TYPE_T, semMLibInit},
     {"semMTake"                      , SYM_TYPE_T, semMTake},
+    {"semMuxprint"                   , SYM_TYPE_B, semMuxprint},
     {"semQInit"                      , SYM_TYPE_T, semQInit},
     {"semTake"                       , SYM_TYPE_T, semTake},
     {"semTypeInit"                   , SYM_TYPE_T, semTypeInit},
@@ -182,20 +192,18 @@ static const TsymPara g_symTbl[] =
     {"taskCreate"                    , SYM_TYPE_T, taskCreate},
     {"taskDelay"                     , SYM_TYPE_T, taskDelay},
     {"taskIdSelf"                    , SYM_TYPE_T, taskIdSelf},
-    {"taskIdle"                      , SYM_TYPE_T, taskIdle},
     {"taskInit"                      , SYM_TYPE_T, taskInit},
     {"taskLibInit"                   , SYM_TYPE_T, taskLibInit},
     {"taskName"                      , SYM_TYPE_T, taskName},
     {"taskPendQueGet"                , SYM_TYPE_T, taskPendQueGet},
     {"taskPendQuePut"                , SYM_TYPE_T, taskPendQuePut},
     {"taskPrioritySet"               , SYM_TYPE_T, taskPrioritySet},
-    {"taskRtn1"                      , SYM_TYPE_T, taskRtn1},
-    {"taskRtn2"                      , SYM_TYPE_T, taskRtn2},
     {"taskSpawn"                     , SYM_TYPE_T, taskSpawn},
-    {"taskStatus"                    , SYM_TYPE_T, taskStatus},
+    {"taskStatusStr"                 , SYM_TYPE_T, taskStatusStr},
     {"tolower"                       , SYM_TYPE_T, tolower},
     {"tstc"                          , SYM_TYPE_T, tstc},
     {"version"                       , SYM_TYPE_T, version},
+    {"vscnprintf"                    , SYM_TYPE_T, vscnprintf},
 };
 
 

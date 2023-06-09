@@ -70,8 +70,8 @@ void USARTx_Config(void)
 #define NUM_RX_BUF  1024
 
 static char uart_rx_buf[NUM_RX_BUF];
-static int  buf_wr_offset = 0;
-static int  buf_rd_offset = 0;
+static volatile int  buf_wr_offset = 0;
+static volatile int  buf_rd_offset = 0;
 static int  uart_rx_cnt = 0;
 
 void UART_Receive(void)
@@ -81,30 +81,15 @@ void UART_Receive(void)
     {
         USART_ReceiveData(macUSARTx);
     }
-#if 0
-    //正在处理上一条通讯，接收到数据不处理
-    if(bRecieveOK)
-    {
-        if(USART_GetITStatus(macUSARTx, USART_IT_RXNE) != RESET)
-            USART_ClearITPendingBit(macUSARTx, USART_IT_RXNE);
-        return;//processing receive data,don't receive again
-    }
-#endif
     if(USART_GetITStatus(macUSARTx, USART_IT_RXNE) != RESET)
     {
         /* Read one byte from the receive data register */
         uart_rx_buf[buf_wr_offset] = (char)USART_ReceiveData(macUSARTx);
         buf_wr_offset = (buf_wr_offset + 1) % NUM_RX_BUF;
         uart_rx_cnt++;
-         if (uart_rx_cnt > NUM_RX_BUF) {
-            // buf overfollow, note main app to deal this error !!!
-            // such as sempost to notify task to deal
-			buf_rd_offset = (buf_wr_offset + NUM_RX_BUF) % NUM_RX_BUF;
-			uart_rx_cnt = NUM_RX_BUF;
-        }
         /* Clear the macUSARTx Receive interrupt */
         USART_ClearITPendingBit(macUSARTx, USART_IT_RXNE);
-        semGive(consoleSemId);
+        // semGive(consoleSemId);
     }
 }
 
@@ -155,10 +140,10 @@ int read(int fd, char *buf, size_t len)
  * 2019/10/11  V1.0    罗乔发         创建
  * ===========================================================================
  */
-// void USART1_IRQHandler(void)                	//串口1中断服务程序
-// {
-// UART_Receive();
-// }
+void USART1_IRQHandler(void)                	//串口1中断服务程序
+{
+    UART_Receive();
+}
 
 
 /// 重定向c库函数printf到macUSARTx
@@ -194,25 +179,24 @@ int puts(const char *s)
     return rc;
 }
 
-
+#define rxbuf_empty() (buf_rd_offset == buf_wr_offset)
 /// 重定向c库函数scanf到macUSARTx
 int fgetc(FILE *f)
 {
     int ch = -1;
     int level;
 
-    semTake(consoleSemId, WAIT_FOREVER);
-    level = intLock();
-    if (uart_rx_cnt > 0) {
-        uart_rx_cnt--;
-        ch = uart_rx_buf[buf_rd_offset];
-        if (buf_rd_offset < (NUM_RX_BUF - 1)) {
-            buf_rd_offset = buf_rd_offset + 1;
-        } else {
-            buf_rd_offset = 0;
-        }
+    // semTake(consoleSemId, WAIT_FOREVER);
+    while (rxbuf_empty()) {
+        taskDelay(1);
     }
-    intUnlock(level);
+
+    ch = uart_rx_buf[buf_rd_offset];
+    if (buf_rd_offset < (NUM_RX_BUF - 1)) {
+        buf_rd_offset = buf_rd_offset + 1;
+    } else {
+        buf_rd_offset = 0;
+    }
 
     return ch;
 }

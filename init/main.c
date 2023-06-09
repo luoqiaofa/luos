@@ -34,41 +34,44 @@ extern int version(void);
 LOCAL SEM_ID semId;
 SEMAPHORE  semMuxprint;
 
-void *taskRtn2(void *arg);
+static void *taskRtn2(void *arg);
 extern void USARTx_Config(void);
 extern char * readline(const char *const prompt);
 
 volatile UINT cpuIdleCnt = 0;
-void *taskIdle(void *arg) {
+static void *taskIdle(void *arg) {
     while (true) {
         cpuIdleCnt++;
     };
+    return NULL;
 }
 
 static SEM_ID semIds[9];
 volatile UINT cpuStatusCnt = 0;
-void *taskStatus(void *arg) {
-    Printf("[%s]Join enter\n", taskName(taskIdSelf()));
+static void *taskStatus(void *arg) {
+    // i();
+    // Printf("[%s]Join enter\n", taskName(taskIdSelf()));
     semTake(semIds[0], WAIT_FOREVER);
-    Printf("[%s]Join exit\n", taskName(taskIdSelf()));
+    // Printf("[%s]Join exit\n", taskName(taskIdSelf()));
     while (true) {
         cpuStatusCnt++;
         taskDelay(1);
     };
+    return NULL;
 }
 
-void *taskOneshort(void *arg)
+static void *taskOneshort(void *arg)
 {
-    Printf("[%s] enter!\n", taskName(taskIdSelf()));
+    // Printf("[%s] enter!\n", taskName(taskIdSelf()));
     taskDelay(sysClkRateGet());
-    Printf("[%s] exit!\n", taskName(taskIdSelf()));
+    // Printf("[%s] exit!\n", taskName(taskIdSelf()));
     return NULL;
 }
 
 extern void LED_Init ( void );
 extern void ledToggle(void);
 int dbg_print = 0;
-void *taskRtn1(void *arg)
+static void *taskRtn1(void *arg)
 {
     tid_t tid;
     TCB_ID tcb;
@@ -80,6 +83,7 @@ void *taskRtn1(void *arg)
     taskSpawn("t2",     10, 0, 1024, taskRtn2, semId);
     taskSpawn("tIdle", 255, 0, 512,  taskIdle, NULL);
     taskSpawn("tStat", 252, 0, 512,  taskStatus, NULL);
+#if 1
     for (cnt = 0; cnt < 9; cnt++) {
         tname[4] = '1' + cnt;
         tid = taskSpawn(tname,  253, 0, 512,  taskOneshort, NULL);
@@ -89,7 +93,7 @@ void *taskRtn1(void *arg)
             Printf("task %s created failed\n", tname);
         }
     }
-
+#endif
     cnt = 0;
 	LED_Init();
     while(true) {
@@ -104,7 +108,8 @@ void *taskRtn1(void *arg)
     return NULL;
 }
 
-void *taskRtn2(void *arg)
+extern void SysReset(void);
+static void *taskRtn2(void *arg)
 {
     SEM_ID id;
     char *cmdline;
@@ -126,6 +131,9 @@ void *taskRtn2(void *arg)
         if (len > 0) {
             if (dbg_print) {
                 Printf("len=%d,cmdline=%s\n", len, cmdline);
+            }
+            if (!strcmp("SysReset", cmdline)) {
+                SysReset();
             }
             retVal = shellCmdlineProcess(cmdline);
             Printf("retVal=%d(0x%0x)\n", retVal, retVal);
@@ -165,11 +173,12 @@ int main (int argc, char *argv[])
     if (OK != rc) {
         printf("taskLibInit failed\n");
     }
-    osCoreInfo()->running = true;
+
     tid = taskSpawn("t1", 35, 0, 1024, taskRtn1, NULL);
     if (NULL == (TCB_ID)tid) {
         printf("Create task t1 failed\n");
     }
+    luosStart();
     while (true) {
     }
     return 0;

@@ -4,6 +4,9 @@
 
 int version(void)
 {
-    printf("%s %s\n", __DATE__, __TIME__);
+    printf("\n############################################\n");
+    printf("# RTOS: luos, version: 2023-06-09 14:33:53 #\n");
+    printf("############################################\n\n");
+
     return 0;
 }

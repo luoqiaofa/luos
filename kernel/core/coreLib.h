@@ -160,6 +160,9 @@ extern int sysClkRateGet(void);
 extern uint32_t sysClkTicksGet(void);
 void coreIntEnter(void);
 void coreIntExit(void);
+extern STATUS i(void);
+extern void tickAnnounce(void);
+extern STATUS luosStart(void);
 
 #endif /* #ifndef __OSCORE_H__ */
 

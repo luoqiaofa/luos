@@ -21,6 +21,7 @@
 IMPORT STATUS taskQReadyPut(TCB_ID tcb);
 IMPORT STATUS taskPendQuePut(LUOS_TCB *tcb, SEM_ID semId);
 IMPORT STATUS taskPendQueGet(LUOS_TCB *tcb, SEM_ID semId);
+IMPORT const char *taskStatusStr(TCB_ID tcb);
 
 #endif /* #ifndef __TASKLIBP_H__ */
 

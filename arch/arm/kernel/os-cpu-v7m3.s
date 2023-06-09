@@ -6,13 +6,13 @@ OS_CPU_SysTickHandler  PROC
     IMPORT  __osinfo__
     IMPORT  coreIntEnter
     IMPORT  coreIntExit
-    IMPORT  coreTickDoing
+    IMPORT  tickAnnounce
     EXPORT  OS_CPU_SysTickHandler
     CPSID  I
     PUSH    {R4-R11,LR}
     LDR     R0, =coreIntEnter
     BLX     R0
-    LDR     R2, =coreTickDoing
+    LDR     R2, =tickAnnounce
     BLX     R2
     LDR     R0, =coreIntExit
     BLX     R0
@@ -58,43 +58,43 @@ OS_CPU_PendSVHandler_nosave
     BX      LR                                                  ; Exception return will restore remaining context
     ENDP
 
-cpuIntDisable PROC
-    EXPORT  cpuIntDisable
+cpuIntLock PROC
+    EXPORT  cpuIntLock
     MRS     R0, PRIMASK
     CPSID   I
     BX  LR
     NOP
     ENDP
 
-cpuIntEnable PROC
-    EXPORT cpuIntEnable
+cpuIntUnlock PROC
+    EXPORT cpuIntUnlock
     MSR PRIMASK, R0
     BX  LR
     ENDP
 
-USART1_IRQHandler PROC
-    EXPORT USART1_IRQHandler
-    IMPORT  __osinfo__
-    IMPORT  coreIntEnter
-    IMPORT  coreIntExit
-    IMPORT  UART_Receive
-    CPSID  I
-    PUSH    {R4-R11,LR}
-    LDR     R0, =coreIntEnter
-    BLX     R0
-    LDR     R2, =UART_Receive
-    BLX     R2
-    LDR     R0, =coreIntExit
-    BLX     R0
-    LDR     R2, =__osinfo__
-    LDR     R0, [R2]
-    LDR     R1, [R2, #0x04]
-    POP     {R4-R11,LR}
-    CMP     R0, R1
-    BNE     OS_CPU_PendSVHandler
-    CPSIE   I
-    BX      LR
-    ENDP
+; USART1_IRQHandler PROC
+;     EXPORT USART1_IRQHandler
+;     IMPORT  __osinfo__
+;     IMPORT  coreIntEnter
+;     IMPORT  coreIntExit
+;     IMPORT  UART_Receive
+;     CPSID  I
+;     PUSH    {R4-R11,LR}
+;     LDR     R0, =coreIntEnter
+;     BLX     R0
+;     LDR     R2, =UART_Receive
+;     BLX     R2
+;     LDR     R0, =coreIntExit
+;     BLX     R0
+;     LDR     R2, =__osinfo__
+;     LDR     R0, [R2]
+;     LDR     R1, [R2, #0x04]
+;     POP     {R4-R11,LR}
+;     CMP     R0, R1
+;     BNE     OS_CPU_PendSVHandler
+;     CPSIE   I
+;     BX      LR
+;     ENDP
 
 cpuRunningTaskStkGet PROC
     EXPORT cpuRunningTaskStkGet

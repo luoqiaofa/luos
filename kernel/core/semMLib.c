@@ -103,13 +103,13 @@ STATUS semMTake(SEM_ID semId, int timeout)
     if (timeout < WAIT_FOREVER) {
         return ERROR;
     }
-agin:
+again:
     level = intLock();
     tcb = currentTask();
     if (NULL == semId->semOwner) {
         semId->oriPriority = tcb->priority;
         semId->semOwner = tcb;
-        semId->recurse++;
+        semId->recurse = 1;
         intUnlock(level);
         return OK;
     } else if (tcb == semId->semOwner) {
@@ -149,7 +149,7 @@ agin:
     }
     rc = tcb->errCode;
     if (OK == rc) {
-        goto agin;
+        goto again;
     }
     return rc;
 }

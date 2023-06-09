@@ -87,6 +87,7 @@ static int taskReturn(void)
 {
     TCB_ID tcb;
     int level;
+
     /* semGive */
     tcb = currentTask();
     // printf("task[%s]tid=%p, exit!\n", tcb->name, tcb);
@@ -96,6 +97,7 @@ static int taskReturn(void)
     tcb->status = TASK_DEAD;
     intUnlock(level);
     semFlush(&tcb->semJoinExit);
+    list_add(&tcb->qNodeSched, &osInfo->qPendHead);
     coreTrySchedule();
     return 0;
 }
@@ -210,8 +212,9 @@ STATUS taskUnlock (void)
 
     level = intLock();
     tcb = currentTask();
-    tcb->lockCnt++;
+    tcb->lockCnt--;
     intUnlock(level);
+    coreTrySchedule();
     return 0;
 }
 
@@ -460,5 +463,32 @@ STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
 STATUS taskQReadyPut(TCB_ID tcb)
 {
     return 0;
+}
+
+const char *taskStatusStr(TCB_ID tcb)
+{
+    if (TASK_READY == tcb->status) {
+        if (tcb == currentTask()) {
+            return "Running";
+        }
+        return "Ready";
+    } else if (TASK_PEND & tcb->status) {
+        if (TASK_DELAY & tcb->status) {
+            return "Pend+T";
+        }
+        return "Pend";
+    } else if (TASK_SUSPEND & tcb->status) {
+        if (TASK_DELAY & tcb->status) {
+            return "Delay+S";
+        }
+        return "Suspend";
+    } else if (TASK_DEAD & tcb->status) {
+        return "Dead";
+    } else if (TASK_DELAY & tcb->status) {
+        return "Delay";
+    } else {
+        return "Unkown";
+    }
+    return "Unkown";
 }
 

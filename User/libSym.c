@@ -14,11 +14,11 @@
 
 
 #if DBG_SYM
-#define sym_dbg(format, arg...) sys_printf("[%s,%d]: " format "\n", __FILE__, __LINE__, ## arg)
-#define SYM_LOG(format, arg...) sys_printf("[%s,%d]: " format "\n", __FILE__, __LINE__, ## arg)
+#define sym_dbg(format, args...) sys_printf("[%s,%d]: " format "\n", __FILE__, __LINE__, ## arg)
+#define SYM_LOG(format, args...) sys_printf("[%s,%d]: " format "\n", __FILE__, __LINE__, ## arg)
 #else
-#define sym_dbg(format, arg...)
-#define SYM_LOG(format, arg...)
+#define sym_dbg(fmt, args...)
+#define SYM_LOG(fmt, args...)  printf(fmt " \n", ## args)
 #endif
 
 struct t_libSymTbl {
@@ -1184,7 +1184,7 @@ int shellCmdlineProcess(char *cmdline)
  */
 static int sys_fun_test(int arg1, int arg2, char *arg3, char *arg4)
 {
-    SYM_LOG("[%s]: arg1=%d,arg2=%d,arg3=%s,arg4=%s", __func__,
+    sys_printf("[%s]: arg1=%d,arg2=%d,arg3=%s,arg4=%s", __func__,
             arg1,arg2,arg3 == NULL?"null":arg3,
             arg4 == NULL?"null":arg4);
     return 0;
@@ -1249,7 +1249,7 @@ static int symLookup(char *name)
             }
             if (NULL != strstr(pTbl->name, name)) {
                 ret = 0;
-                SYM_LOG("%s", pTbl->name);
+                sys_printf("%s", pTbl->name);
             }
         }
     }
@@ -1381,7 +1381,7 @@ static int md(void *addr, int len, int data_type)
                 sys_printf("%02x ", *mem_8);
                 mem_8++;
                 if (0 == ((lp + 1) % 16)) {
-                    SYM_LOG("");
+                    sys_printf("");
                     sys_printf("%p: ", mem_8);
                 }
             }
@@ -1393,7 +1393,7 @@ static int md(void *addr, int len, int data_type)
                 sys_printf("%04x ", *mem_16);
                 mem_16++;
                 if (0 == ((lp + 1) % 16)) {
-                    SYM_LOG("");
+                    sys_printf("");
                     sys_printf("%p: ", mem_16);
                 }
             }
@@ -1404,7 +1404,7 @@ static int md(void *addr, int len, int data_type)
                 sys_printf("%08x ", *mem_32);
                 mem_32++;
                 if ((lp % 16) == 15) {
-                    SYM_LOG("");
+                    sys_printf("");
                     sys_printf("%p: ", mem_32);
                 }
             }

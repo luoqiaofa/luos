@@ -87,14 +87,39 @@ STATUS osMemFree(void *ptr)
     return 0;
 }
 
-void coreEnterInt(void)
+#define NUM_TICK_JOBS 256
+typedef STATUS (*tickAnnounce_t)(void);
+static tickAnnounce_t coreTickJobsTbl[NUM_TICK_JOBS];
+volatile uint8_t tickQworkWrIdx = 0;
+volatile uint8_t tickQWorkRdIdx = 0;
+volatile int16_t numTocksQWork = 0;
+
+#define tickQWorkEmpey() (0 == numTocksQWork)
+void tickAnnounce(void)
 {
-    __osinfo__.intNestedCnt++;
+    TCB_ID tcb = currentTask();
+    if (0 == tcb->lockCnt) {
+        coreTickDoing();
+    } else {
+        numTocksQWork++;
+        coreTickJobsTbl[tickQworkWrIdx++] = coreTickDoing;
+    }
 }
 
-void coreEnterExit(void)
+STATUS tickQWorkDoing(void)
 {
-    __osinfo__.intNestedCnt--;
+    int num = 0;
+    tickAnnounce_t pfunc;
+
+    while (!tickQWorkEmpey()) {
+        pfunc = coreTickJobsTbl[tickQWorkRdIdx++];
+        pfunc();
+        num++;
+        numTocksQWork--;
+    }
+    tickQWorkRdIdx = 0;
+    tickQworkWrIdx = 0;
+    return num;
 }
 
 STATUS coreTickDoing(void)
@@ -103,6 +128,10 @@ STATUS coreTickDoing(void)
     LUOS_INFO *osInfo;
     PriInfo_t *pri;
     TCB_ID tcb = currentTask();
+
+    if (tcb->lockCnt > 0) {
+        return ERROR;
+    }
 
     osInfo = &__osinfo__;
     osInfo->sysTicksCnt++;
@@ -161,8 +190,6 @@ STATUS coreTickDoing(void)
     } /* (pri->numTask > 1) */ else {
         /* only one task in the priority ready table */
     }
-    /* find the highest ready priority , then shedule */
-    coreTrySchedule();
     return 0;
 }
 
@@ -181,6 +208,9 @@ void coreTrySchedule(void)
         return ;
     }
     level = intLock();
+    if (0 == osInfo->intNestedCnt) {
+        tickQWorkDoing();
+    }
     grp = cpuCntLeadZeros(osInfo->readyPriGrp);
     if (grp >= NLONG_PRIORITY) {
         while (1) {;/* hang here */}
@@ -218,6 +248,7 @@ void coreIntEnter(void)
 
 void coreIntExit(void)
 {
+    coreTrySchedule();
     osCoreInfo()->intNestedCnt--;
 }
 
@@ -252,5 +283,84 @@ void coreScheduleEnable(void)
 void coreScheduleDisable(void)
 {
     osCoreInfo()->schedLocked = false;
+}
+
+#include <stdio.h>
+#define log(fmt, args...) printf(fmt " \n", ## args)
+STATUS i(void)
+{
+    TCB_ID tcb;
+    TLIST *node;
+    int priority;
+    PriInfo_t *pri;
+    cpudata_t grp, off;
+    LUOS_INFO *osInfo = osCoreInfo();
+    uint32_t ntick;
+
+    taskLock();
+    log("###############################################################################");
+    log("Name         TID    Pri   Status stkBase     Stack  stkSize");
+    for(grp = 0; grp < NLONG_PRIORITY; grp++) {
+        if (0 != osInfo->readyPriTbl[grp]) {
+            for (off = 0; off < BITS_PER_LONG; off++) {
+                if (osInfo->readyPriTbl[grp] & (1 << (BITS_PER_LONG - 1 - off))) {
+                    priority = grp * BITS_PER_LONG + off;
+                    pri = osInfo->priInfoTbl + priority;
+                    list_for_each(node, &pri->qReadyHead) {
+                        tcb = list_entry(node, LUOS_TCB, qNodeSched);
+                        log("%-10s %p %-4d %7s %p %p %8d", \
+                                tcb->name, \
+                                tcb,               \
+                                tcb->priority, \
+                                taskStatusStr(tcb), \
+                                tcb->stkBase, \
+                                tcb->stack,    \
+                                tcb->stkSize);
+                    }
+                }
+            }
+        }
+    }
+    list_for_each(node, &osInfo->qDelayHead) {
+        tcb = list_entry(node, LUOS_TCB, qNodeSched);
+        log("%-10s %p %-4d %7s %p %p %8d", \
+                tcb->name, \
+                tcb,               \
+                tcb->priority, \
+                taskStatusStr(tcb), \
+                tcb->stkBase, \
+                tcb->stack,    \
+                tcb->stkSize);
+    }
+    list_for_each(node, &osInfo->qPendHead) {
+        tcb = list_entry(node, LUOS_TCB, qNodeSched);
+        log("%-10s %p %-4d %7s %p %p %8d", \
+                tcb->name, \
+                tcb,               \
+                tcb->priority, \
+                taskStatusStr(tcb), \
+                tcb->stkBase, \
+                tcb->stack,    \
+                tcb->stkSize);
+    }
+    log("###############################################################################");
+    ntick = numTocksQWork ;
+
+    taskUnlock();
+    // log("ntick=%u", ntick);
+    return 0;
+}
+
+STATUS luosStart(void)
+{
+    int level;
+
+    level = intLock();
+    tickQworkWrIdx = 0;
+    tickQWorkRdIdx = 0;
+    osCoreInfo()->running = true;
+    intUnlock(level);
+    coreTrySchedule();
+    return 0;
 }
 
