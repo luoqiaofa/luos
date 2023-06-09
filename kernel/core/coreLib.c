@@ -94,11 +94,12 @@ volatile uint8_t tickQworkWrIdx = 0;
 volatile uint8_t tickQWorkRdIdx = 0;
 volatile int16_t numTocksQWork = 0;
 
-#define tickQWorkEmpey() (0 == numTocksQWork)
+#define tickQWorkEmpey() (tickQworkWrIdx == tickQWorkRdIdx)
 void tickAnnounce(void)
 {
     TCB_ID tcb = currentTask();
     if (0 == tcb->lockCnt) {
+        tickQWorkDoing();
         coreTickDoing();
     } else {
         numTocksQWork++;
@@ -117,8 +118,6 @@ STATUS tickQWorkDoing(void)
         num++;
         numTocksQWork--;
     }
-    tickQWorkRdIdx = 0;
-    tickQworkWrIdx = 0;
     return num;
 }
 
@@ -208,9 +207,8 @@ void coreTrySchedule(void)
         return ;
     }
     level = intLock();
-    if (0 == osInfo->intNestedCnt) {
-        tickQWorkDoing();
-    }
+    tickQWorkDoing();
+
     grp = cpuCntLeadZeros(osInfo->readyPriGrp);
     if (grp >= NLONG_PRIORITY) {
         while (1) {;/* hang here */}
