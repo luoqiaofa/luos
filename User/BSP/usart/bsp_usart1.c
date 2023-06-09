@@ -2,7 +2,6 @@
 #include "bsp_usart1.h"
 #include "coreLib.h"
 
-SEM_ID consoleSemId = NULL;
 #define CONSOLE_BUF_DBG 0
 // static FILE __stdin;
 // static FILE __stdout;
@@ -63,8 +62,6 @@ void USARTx_Config(void)
     USART_ITConfig(macUSARTx, USART_IT_RXNE, ENABLE);
 
     USART_Cmd(macUSARTx, ENABLE);
-
-    consoleSemId = semCCreate(SEM_Q_PRIORITY, 0);
 }
 
 #define NUM_RX_BUF  1024
@@ -89,43 +86,9 @@ void UART_Receive(void)
         uart_rx_cnt++;
         /* Clear the macUSARTx Receive interrupt */
         USART_ClearITPendingBit(macUSARTx, USART_IT_RXNE);
-        // semGive(consoleSemId);
     }
 }
 
-/*
- * ===========================================================================
- * 函数名称: read
- * 功能描述: console 串口数据读取
- * 输入参数: 无
- * 输出参数: 无
- * 返 回 值：无
- * 其它说明：
- * 修改日期        版本号     修改人         修改内容
- * ----------------------------------------------------------------------------
- * 2019/10/11  V1.0    罗乔发         创建
- * ===========================================================================
- */
-int read(int fd, char *buf, size_t len)
-{
-    int i;
-    int real_len = 0;
-
-     if (uart_rx_cnt > 0) {
-        real_len = (uart_rx_cnt >= len ? len: uart_rx_cnt);
-		uart_rx_cnt -= real_len;
-        for (i = 0; i < real_len; i++) {
-			buf[i] = uart_rx_buf[buf_rd_offset];
-			if (buf_rd_offset < (NUM_RX_BUF - 1)) {
-				buf_rd_offset = buf_rd_offset + 1;
-			} else {
-				 buf_rd_offset = 0;
-			}
-		}
-    }
-
-    return real_len;
-}
 
 /*
  * ===========================================================================
@@ -203,50 +166,15 @@ int fgetc(FILE *f)
 
 int tstc(void)
 {
-    if (uart_rx_cnt > 0) {
-        return 1;
+    if (rxbuf_empty()) {
+        return 0;
     }
-    return 0;
+    return 1;
 }
 
 int getc(FILE *stream)
 {
     return fgetc(stream);
-}
-
-
-#ifndef STDIN_FILENO
-#define STDIN_FILENO    0       /* standard input file descriptor */
-#define STDOUT_FILENO   1       /* standard output file descriptor */
-#define STDERR_FILENO   2       /* standard error file descriptor */
-#endif
-
-int _write (int fd, char *pBuffer, int size)
-{
-	int i;
-    switch (fd) {
-        case STDOUT_FILENO:
-        case STDERR_FILENO:
-        break;
-        default :
-            return -1;
-        break;
-    }
-    for (i = 0; i < size; i++) {
-        fputc(pBuffer[i], stdout);
-    }
-    return size;
-}
-
-int _read(int fd, char *ptr, int len)
-{
-    int rc = 0;
-
-    if (STDIN_FILENO != fd) {
-        return -1;
-    }
-    rc = read(fd, ptr, len);
-    return rc;
 }
 
 /*********************************************END OF FILE**********************/
