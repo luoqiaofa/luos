@@ -88,9 +88,6 @@ STATUS semBGive(SEM_ID semId)
     if (NULL == semId || semId->semType != SEM_TYPE_BINARY) {
         return ERROR;
     }
-    if (SEM_EMPTY != semId->recurse && SEM_FULL != semId->recurse) {
-        return ERROR;
-    }
 
     if (NULL == semId->semOwner) {
         return OK;
