@@ -841,19 +841,19 @@ static int funcArgsParse(char *argLine, int *argc, void * argv[])
                     }
                     break;
                 case eSM_ARGTYPE_NUMBER_PRE2:
-                    ch = tolower(*pre);
+                    ch = tolower(*p);
                     if (isdigit(ch)) {
                         base = 10;
                         esm_char = eSM_ARGTYPE_DIGIT;
                     } else if ('x' == ch) {
                         base = 16;
-                        esm_char = eSM_ARGTYPE_NUMBER_PRE3;
+                        esm_char = eSM_ARGTYPE_XDIGIT;
                     } else if ('o' == ch) {
                         base = 8;
-                        esm_char = eSM_ARGTYPE_NUMBER_PRE3;
+                        esm_char = eSM_ARGTYPE_ODIGIT;
                     } else if ('b' == ch) {
                         base = 2;
-                        esm_char = eSM_ARGTYPE_NUMBER_PRE3;
+                        esm_char = eSM_ARGTYPE_BINARY;
                     } else {
                         SYM_LOG("Syntax error: number format error!");
                         sym_dbg("state=%d, c=%c", esm_char, *p);
@@ -864,35 +864,30 @@ static int funcArgsParse(char *argLine, int *argc, void * argv[])
                 case eSM_ARGTYPE_XDIGIT:
                 case eSM_ARGTYPE_ODIGIT:
                 case eSM_ARGTYPE_BINARY:
-                case eSM_ARGTYPE_NUMBER_PRE3:
                     if (10 == base) {
                         if (!isdigit(*p)) {
                             SYM_LOG("Syntax error: number format error!");
                             sym_dbg("state=%d, c=%c", esm_char, *p);
                             return -1;
                         }
-                        esm_char = eSM_ARGTYPE_DIGIT;
                     } else if (16 == base) {
                         if (!isxdigit(*p)) {
                             SYM_LOG("Syntax error: number format error!");
                             sym_dbg("state=%d, c=%c", esm_char, *p);
                             return -1;
                         }
-                        esm_char = eSM_ARGTYPE_XDIGIT;
                     } else if (8 == base) {
                         if (!isodigit(*p)) {
                             SYM_LOG("Syntax error: number format error!");
                             sym_dbg("state=%d, c=%c", esm_char, *p);
                             return -1;
                         }
-                        esm_char = eSM_ARGTYPE_ODIGIT;
                     } else if (2 == base) {
                         if (!isbinary(*p)) {
                             SYM_LOG("Syntax error: number format error!");
                             sym_dbg("state=%d, c=%c", esm_char, *p);
                             return -1;
                         }
-                        esm_char = eSM_ARGTYPE_BINARY;
                     } else {
                     }
                     break;
