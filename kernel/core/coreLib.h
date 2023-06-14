@@ -24,6 +24,9 @@
 #include "taskLibP.h"
 #include "semLib.h"
 #include "memPartLib.h"
+#include "timerLib.h"
+
+
 #ifndef CONFIG_NUM_PRIORITY
 #define CONFIG_NUM_PRIORITY 256 /* 64/256/1024/4096 */
 #endif

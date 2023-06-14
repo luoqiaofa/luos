@@ -135,6 +135,7 @@ STATUS coreTickDoing(void)
 
     osInfo = &__osinfo__;
     osInfo->sysTicksCnt++;
+    timerListDone();
     tcb->runTicksCnt++;
     node_del = NULL;
     list_for_each(node, &osInfo->qDelayHead) {
@@ -365,6 +366,7 @@ STATUS luosStart(void)
     tickQworkWrIdx = 0;
     tickQWorkRdIdx = 0;
     osCoreInfo()->running = true;
+    timerLibInit();
     intUnlock(level);
     coreTrySchedule();
     return 0;

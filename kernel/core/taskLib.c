@@ -154,6 +154,9 @@ STATUS taskInit(LUOS_TCB *tcb, char *name, int priority, int options,
     tcb->stkLimit  = stackSize / 10;
 
     taskListInit(tcb);
+    taskLock();
+    list_add_tail(&tcb->qNodeSched, &osInfo->qPendHead);
+    taskUnlock();
 
     cpuStackInit(tcb, taskReturn);
     semCInit(&tcb->semJoinExit, 0, 0);
@@ -173,6 +176,7 @@ STATUS taskActivate(tid_t tid)
     level = intLock();
     tcb->status = TASK_READY;
     pri = osInfo->priInfoTbl + tcb->priority;
+    list_del_init(&tcb->qNodeSched);
     list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
     taskReadyAdd(tcb);
     intUnlock(level);
@@ -281,17 +285,19 @@ STATUS taskSuspend(tid_t tid)
 
     tcb = (LUOS_TCB *)tid;
     level = intLock();
-    list_del(&tcb->qNodeSched);
-    INIT_LIST_HEAD(&tcb->qNodeSched);
+
     if (TASK_READY == tcb->status) {
         if (NULL == tcb->semIdOwner) {
-            taskReadyRemove(tcb);
             tcb->status |= TASK_SUSPEND;
+            list_del_init(&tcb->qNodeSched);
+            taskReadyRemove(tcb);
+            list_add(&tcb->qNodeSched, &osInfo->qPendHead);
             intUnlock(level);
             coreTrySchedule();
             return OK;
         }
     }
+    tcb->status |= TASK_SUSPEND;
     intUnlock(level);
     return ERROR;
 }
@@ -308,9 +314,13 @@ STATUS taskResume(tid_t tid)
     }
     level = intLock();
     pri = osInfo->priInfoTbl + tcb->priority;
-    list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-    taskReadyAdd(tcb);
-    tcb->status &= ~TASK_SUSPEND;
+
+    tcb->status &= ~(TASK_SUSPEND/* | TASK_DELAY*/);
+    if (TASK_READY == tcb->status) {
+        list_del_init(&tcb->qNodeSched);
+        list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+        taskReadyAdd(tcb);
+    }
     intUnlock(level);
     coreTrySchedule();
     return 0;

@@ -6,6 +6,10 @@ extern int semMuxprint[];
 extern int cpuIdleCnt[];
 extern int cpuStatusCnt[];
 extern int dbg_print[];
+extern int numTocksQWork[];
+extern int tickQWorkRdIdx[];
+extern int tickQworkWrIdx[];
+extern int tmr_keep[];
 extern void * BSP_CPU_ClkFreq(void);
 extern void * cli_readline(void);
 extern void * cli_readline_into_buffer(void);
@@ -33,6 +37,7 @@ extern void * intUnlock(void);
 extern void * isValidNumber(void);
 extern void * ledToggle(void);
 extern void * LED_Init(void);
+extern void * luosStart(void);
 extern void * memPartAlloc(void);
 extern void * memPartFree(void);
 extern void * memPartInit(void);
@@ -77,15 +82,27 @@ extern void * SystemInit(void);
 extern void * taskActivate(void);
 extern void * taskCreate(void);
 extern void * taskDelay(void);
+extern void * taskDelete(void);
 extern void * taskIdSelf(void);
 extern void * taskInit(void);
 extern void * taskLibInit(void);
+extern void * taskLock(void);
 extern void * taskName(void);
 extern void * taskPendQueGet(void);
 extern void * taskPendQuePut(void);
 extern void * taskPrioritySet(void);
 extern void * taskSpawn(void);
 extern void * taskStatusStr(void);
+extern void * taskSuspend(void);
+extern void * taskUnlock(void);
+extern void * tickAnnounce(void);
+extern void * tickQWorkDoing(void);
+extern void * timerAdd(void);
+extern void * timerInit(void);
+extern void * timerLibInit(void);
+extern void * timerListDone(void);
+extern void * timerModify(void);
+extern void * timer_add_test(void);
 extern void * tolower(void);
 extern void * tstc(void);
 extern void * UART_Receive(void);
@@ -150,10 +167,12 @@ static const TsymPara g_symTbl[] =
     {"intUnlock"                     , SYM_TYPE_T, intUnlock},
     {"isValidNumber"                 , SYM_TYPE_T, isValidNumber},
     {"ledToggle"                     , SYM_TYPE_T, ledToggle},
+    {"luosStart"                     , SYM_TYPE_T, luosStart},
     {"memPartAlloc"                  , SYM_TYPE_T, memPartAlloc},
     {"memPartFree"                   , SYM_TYPE_T, memPartFree},
     {"memPartInit"                   , SYM_TYPE_T, memPartInit},
     {"memPartLibInit"                , SYM_TYPE_T, memPartLibInit},
+    {"numTocksQWork"                 , SYM_TYPE_D, numTocksQWork},
     {"osMemAlloc"                    , SYM_TYPE_T, osMemAlloc},
     {"osMemFree"                     , SYM_TYPE_T, osMemFree},
     {"putc"                          , SYM_TYPE_T, putc},
@@ -189,15 +208,30 @@ static const TsymPara g_symTbl[] =
     {"taskActivate"                  , SYM_TYPE_T, taskActivate},
     {"taskCreate"                    , SYM_TYPE_T, taskCreate},
     {"taskDelay"                     , SYM_TYPE_T, taskDelay},
+    {"taskDelete"                    , SYM_TYPE_T, taskDelete},
     {"taskIdSelf"                    , SYM_TYPE_T, taskIdSelf},
     {"taskInit"                      , SYM_TYPE_T, taskInit},
     {"taskLibInit"                   , SYM_TYPE_T, taskLibInit},
+    {"taskLock"                      , SYM_TYPE_T, taskLock},
     {"taskName"                      , SYM_TYPE_T, taskName},
     {"taskPendQueGet"                , SYM_TYPE_T, taskPendQueGet},
     {"taskPendQuePut"                , SYM_TYPE_T, taskPendQuePut},
     {"taskPrioritySet"               , SYM_TYPE_T, taskPrioritySet},
     {"taskSpawn"                     , SYM_TYPE_T, taskSpawn},
     {"taskStatusStr"                 , SYM_TYPE_T, taskStatusStr},
+    {"taskSuspend"                   , SYM_TYPE_T, taskSuspend},
+    {"taskUnlock"                    , SYM_TYPE_T, taskUnlock},
+    {"tickAnnounce"                  , SYM_TYPE_T, tickAnnounce},
+    {"tickQWorkDoing"                , SYM_TYPE_T, tickQWorkDoing},
+    {"tickQWorkRdIdx"                , SYM_TYPE_D, tickQWorkRdIdx},
+    {"tickQworkWrIdx"                , SYM_TYPE_D, tickQworkWrIdx},
+    {"timerAdd"                      , SYM_TYPE_T, timerAdd},
+    {"timerInit"                     , SYM_TYPE_T, timerInit},
+    {"timerLibInit"                  , SYM_TYPE_T, timerLibInit},
+    {"timerListDone"                 , SYM_TYPE_T, timerListDone},
+    {"timerModify"                   , SYM_TYPE_T, timerModify},
+    {"timer_add_test"                , SYM_TYPE_T, timer_add_test},
+    {"tmr_keep"                      , SYM_TYPE_D, tmr_keep},
     {"tolower"                       , SYM_TYPE_T, tolower},
     {"tstc"                          , SYM_TYPE_T, tstc},
     {"version"                       , SYM_TYPE_T, version},

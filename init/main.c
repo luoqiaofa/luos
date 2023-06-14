@@ -68,6 +68,33 @@ static void *taskOneshort(void *arg)
     return NULL;
 }
 
+LOCAL timerList_t timerL;
+int tmr_keep = 1;
+LOCAL int timer_expire(void *arg)
+{
+    static int loop = 0;
+    cputime_t expires;
+
+    printf("[%s]Enter..., loop=%d\n", __func__, loop++);
+
+    if (tmr_keep) {
+        expires = sysClkTicksGet();
+        expires += sysClkRateGet();
+        timerModify((timerid_t)&timerL, expires);
+    }
+    return 0;
+}
+
+int timer_add_test(void)
+{
+    cputime_t expires = sysClkTicksGet();
+
+    expires += sysClkRateGet();
+    timerInit((timerid_t)&timerL, expires, timer_expire, NULL);
+    timerAdd((timerid_t)&timerL);
+    return 0;
+}
+
 extern void LED_Init ( void );
 extern void ledToggle(void);
 int dbg_print = 0;
@@ -77,6 +104,8 @@ static void *taskRtn1(void *arg)
     TCB_ID tcb;
     int cnt = 0;
     char tname[20] = "tOne";
+
+    timer_add_test();
 
     sysClkRateSet(CONFIG_HZ);
 
