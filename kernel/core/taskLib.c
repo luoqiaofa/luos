@@ -92,12 +92,12 @@ static int taskReturn(void)
     tcb = currentTask();
     // printf("task[%s]tid=%p, exit!\n", tcb->name, tcb);
     level = intLock();
-    list_del(&tcb->qNodeSched);
+    list_del_init(&tcb->qNodeSched);
+    list_add(&tcb->qNodeSched, &osInfo->qPendHead);
     taskReadyRemove(tcb);
     tcb->status = TASK_DEAD;
     intUnlock(level);
     semFlush(&tcb->semJoinExit);
-    list_add(&tcb->qNodeSched, &osInfo->qPendHead);
     coreTrySchedule();
     return 0;
 }
@@ -136,6 +136,8 @@ static STATUS taskNameInit(LUOS_TCB *tcb, char *name)
 STATUS taskInit(LUOS_TCB *tcb, char *name, int priority, int options,
         char *pStackBase, int stackSize, START_RTN taskEntry, void *arg)
 {
+    int level;
+
     if (taskNameInit(tcb, name)) {
         return -1;
     }
@@ -154,9 +156,9 @@ STATUS taskInit(LUOS_TCB *tcb, char *name, int priority, int options,
     tcb->stkLimit  = stackSize / 10;
 
     taskListInit(tcb);
-    taskLock();
+    level = intLock();
     list_add_tail(&tcb->qNodeSched, &osInfo->qPendHead);
-    taskUnlock();
+    intUnlock(level);
 
     cpuStackInit(tcb, taskReturn);
     semCInit(&tcb->semJoinExit, 0, 0);
