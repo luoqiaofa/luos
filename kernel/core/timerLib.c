@@ -98,39 +98,42 @@ STATUS timerModify(timerid_t tmrid, cputime_t expires)
 
 LOCAL void *timerTaskEntry(void *arg)
 {
-    TLIST *node;
+    int level;
+    TLIST *node, newhead;
     uint32_t idx, num;
-    timerList_t *tmr, **ptmr;
+    timerList_t *tmr;
 
     while (1) {
-        taskLock();
-        num = qTimerExpires.numItem;
-        if (0 == num) {
-            taskUnlock();
+        level = intLock();
+        if (list_empty(&qTimerExpires.list)) {
+            intUnlock(level);
             taskSuspend(taskIdSelf());
             continue;
         }
-        ptmr = osMemAlloc(num * sizeof(*tmr));
-        if (NULL == ptmr) {
-             taskUnlock();
-             taskSuspend(taskIdSelf());
-             continue;
-        }
+        num = qTimerExpires.numItem;
+        list_replace(&qTimerExpires.list, &newhead);
+        timerQInit(&qTimerExpires);
+        intUnlock(level);
         idx = 0;
-        list_for_each(node, &qTimerExpires.list) {
-            ptmr[idx++] = list_entry(node, timerList_t, entry);
+        tmr = NULL;
+        list_for_each(node, &newhead) {
+            idx++;
+            if (NULL != tmr) {
+                list_del_init(&tmr->entry);
+                if (NULL != tmr->callback) {
+                    tmr->callback(tmr->arg);
+                }
+                tmr = NULL;
+            }
+            tmr = list_entry(node, timerList_t, entry);
         }
-        for (idx = 0; idx < num; idx++) {
-            timerQRemove(&qTimerExpires, ptmr[idx]);
-        }
-        taskUnlock();
-        for (idx = 0; idx < num; idx++) {
-            tmr = ptmr[idx];
+        if (NULL != tmr) {
+            list_del_init(&tmr->entry);
             if (NULL != tmr->callback) {
                 tmr->callback(tmr->arg);
             }
+            tmr = NULL;
         }
-        osMemFree(ptmr);
         taskSuspend(taskIdSelf());
     }
     return NULL;
