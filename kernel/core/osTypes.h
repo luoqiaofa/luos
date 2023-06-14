@@ -46,10 +46,10 @@ typedef uint16_t      UINT16;
 typedef uint32_t      UINT32;
 typedef uint64_t      UINT64;
 
-typedef uint8_t       UCHAR;
-typedef uint16_t      USHORT;
-typedef uint32_t      UINT;
-typedef uint64_t      ULONG;
+typedef unsigned char  UCHAR;
+typedef unsigned short USHORT;
+typedef unsigned int   UINT;
+typedef unsigned long  ULONG;
 
 typedef bool          BOOL;
 typedef int           STATUS;
