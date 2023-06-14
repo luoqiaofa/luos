@@ -28,6 +28,7 @@ extern int usrSymInit(void);
 extern int sysSymTblInit(void);
 extern int shellCmdlineProcess(char *cmdline);
 int Printf(const char *fmt, ...);
+int cpu_sizeof(void);
 
 
 extern int version(void);
@@ -38,32 +39,27 @@ static void *taskRtn2(void *arg);
 extern void USARTx_Config(void);
 extern char * readline(const char *const prompt);
 
-volatile UINT cpuIdleCnt = 0;
-static void *taskIdle(void *arg) {
-    while (true) {
-        cpuIdleCnt++;
-    };
-    return NULL;
-}
-
 static SEM_ID semIds[9];
 volatile UINT cpuStatusCnt = 0;
 static void *taskStatus(void *arg) {
     // i();
-    // Printf("[%s]Join enter\n", taskName(taskIdSelf()));
+    printf("[%s] enter\n", taskName(taskIdSelf()));
     semTake(semIds[0], WAIT_FOREVER);
-    // Printf("[%s]Join exit\n", taskName(taskIdSelf()));
+    printf("[%s]wait someone task exit ok\n", taskName(taskIdSelf()));
     while (true) {
         cpuStatusCnt++;
-        taskDelay(1);
+        taskDelay(2);
     };
     return NULL;
 }
 
 static void *taskOneshort(void *arg)
 {
+    int nsec = (int)arg;
+
+    nsec <= 0 ? 1 : nsec;
     // Printf("[%s] enter!\n", taskName(taskIdSelf()));
-    taskDelay(sysClkRateGet());
+    taskDelay(nsec * sysClkRateGet());
     // Printf("[%s] exit!\n", taskName(taskIdSelf()));
     return NULL;
 }
@@ -75,7 +71,9 @@ LOCAL int timer_expire(void *arg)
     static int loop = 0;
     cputime_t expires;
 
-    printf("[%s]Enter..., loop=%d\n", __func__, loop++);
+    if (tmr_keep & 0x02) {
+        printf("[%s]Enter..., loop=%d\n", __func__, loop++);
+    }
 
     if (tmr_keep) {
         expires = sysClkTicksGet();
@@ -110,12 +108,11 @@ static void *taskRtn1(void *arg)
     sysClkRateSet(CONFIG_HZ);
 
     taskSpawn("t2",     10, 0, 1024, taskRtn2, semId);
-    taskSpawn("tIdle", 255, 0, 512,  taskIdle, NULL);
     taskSpawn("tStat", 252, 0, 512,  taskStatus, NULL);
 #if 1
     for (cnt = 0; cnt < 9; cnt++) {
         tname[4] = '1' + cnt;
-        tid = taskSpawn(tname,  253, 0, 512,  taskOneshort, NULL);
+        tid = taskSpawn(tname,  253, 0, 512,  taskOneshort, (void *)(15-cnt));
         tcb = (TCB_ID)tid;
         semIds[cnt] = &(tcb->semJoinExit);
         if (tid == (tid_t)0) {
@@ -140,13 +137,11 @@ static void *taskRtn1(void *arg)
 extern void SysReset(void);
 static void *taskRtn2(void *arg)
 {
-    SEM_ID id;
     char *cmdline;
     size_t len = 0;
     int cnt = 0;
     int retVal;
 
-    id = (SEM_ID)arg;
     sysSymTblInit();
     usrSymInit();
     while(true) {
@@ -184,6 +179,9 @@ int main (int argc, char *argv[])
     int rc;
     tid_t tid;
 
+    USARTx_Config();
+	version();
+    // cpu_sizeof();
 
     rc = coreLibInit();
     rc = memPartLibInit();
@@ -197,17 +195,12 @@ int main (int argc, char *argv[])
     if (NULL == semId) {
         return -1;
     }
-	USARTx_Config();
-	version();
+
     if (OK != rc) {
         printf("taskLibInit failed\n");
     }
 
-    tid = taskSpawn("t1", 35, 0, 1024, taskRtn1, NULL);
-    if (NULL == (TCB_ID)tid) {
-        printf("Create task t1 failed\n");
-    }
-    luosStart();
+    luosStart(taskRtn1, NULL, 4096);
     while (true) {
     }
     return 0;
@@ -256,3 +249,45 @@ int Printf(const char *fmt, ...)
 	return i;
 }
 
+int cpu_sizeof(void)
+{
+    printf(
+            "sizeof(char)      =%u\n"
+            "sizeof(short)     =%u\n"
+            "sizeof(int)       =%u\n"
+            "sizeof(long)      =%u\n"
+            "sizeof(float)     =%u\n"
+            "sizeof(double)    =%u\n"
+            "sizeof(void)      =%u\n"
+            "sizeof(UINT)      =%u\n"
+            "sizeof(ULONG)     =%u\n",
+            sizeof(char)  ,
+            sizeof(short) ,
+            sizeof(int)  ,
+            sizeof(long)  ,
+            sizeof(float) ,
+            sizeof(double),
+            sizeof(void),
+            sizeof(UINT),
+            sizeof(ULONG)
+          );
+    printf(
+            "sizeof(char *)    =%d\n"
+            "sizeof(short *)   =%d\n"
+            "sizeof(int *)     =%d\n"
+            "sizeof(long *)    =%d\n"
+            "sizeof(float *)   =%d\n"
+            "sizeof(double *)  =%d\n"
+            "sizeof(void *)    =%d\n",
+            (int)sizeof(char *)  ,
+            (int)sizeof(short *) ,
+            (int)sizeof(int *)  ,
+            (int)sizeof(long *)  ,
+            (int)sizeof(float *) ,
+            (int)sizeof(double *) ,
+            (int)sizeof(void *)
+          );
+
+    printf("sizeof(\"abcd\")    =%u\n",(unsigned int)sizeof("abcd"));
+    return 0;
+}				/* ----------  end of function main  ---------- */

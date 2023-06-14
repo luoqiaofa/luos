@@ -58,7 +58,7 @@ STATUS timerInit(timerid_t tmrid, cputime_t expires, TIMER_CB cb, void *arg);
 STATUS timerAdd(timerid_t tmrid);
 STATUS timerDelete(timerid_t tmrid);
 STATUS timerModify(timerid_t tmrid, cputime_t expires);
-void timerListDone(void);
+void timerListDing(void);
 
 
 #endif /* #ifndef __TIMERLIB_H__ */

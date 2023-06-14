@@ -135,7 +135,7 @@ STATUS coreTickDoing(void)
 
     osInfo = &__osinfo__;
     osInfo->sysTicksCnt++;
-    timerListDone();
+    timerListDing();
     tcb->runTicksCnt++;
     node_del = NULL;
     list_for_each(node, &osInfo->qDelayHead) {
@@ -194,7 +194,7 @@ STATUS coreTickDoing(void)
     return 0;
 }
 
-void coreTrySchedule(void)
+static inline TCB_ID highReadyTaskGet(void)
 {
     int grp;
     int off;
@@ -202,44 +202,45 @@ void coreTrySchedule(void)
     PriInfo_t *pri;
     int  priority;
     LUOS_INFO *osInfo;
-    int level;
 
     osInfo = &__osinfo__;
-    if (!osInfo->running) {
-        return ;
-    }
-    level = intLock();
-    if (0 == osInfo->intNestedCnt) {
-        tickQWorkDoing();
-    }
-
     grp = cpuCntLeadZeros(osInfo->readyPriGrp);
-    if (grp >= NLONG_PRIORITY) {
-        while (1) {;/* hang here */}
+    while (grp >= NLONG_PRIORITY) {
+        ;/* hang here */
     }
     off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
-    if (off >= BITS_PER_LONG) {
-        while (1) {;/* hang here */}
+    while (off >= BITS_PER_LONG) {
+       ;/* hang here */
     }
     priority = grp * BITS_PER_LONG + off;
-    pri = osInfo->priInfoTbl + priority;
-    if (list_empty(&pri->qReadyHead)) {
-        intUnlock(level);
-        while (1) {;/* hang here */}
+    pri = __osinfo__.priInfoTbl + priority;
+    while (list_empty(&pri->qReadyHead)) {
+        ;/* hang here */
     }
     tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
-    if ((NULL == currentTask()) || currentTask() != tcb) {
-        /* start scheduled */
-        if (NULL == currentTask()) {
-            osInfo->currentTcb = tcb;
-        }
-        if (currentTask()->lockCnt > 0) {
-            osInfo->highestTcb = currentTask();
-            intUnlock(level);
-            return;
-        }
-        osInfo->highestTcb = tcb;
-        if (0 == osInfo->intNestedCnt) {
+    while (NULL == tcb) {;/* hang here */}
+    return tcb;
+}
+
+void coreTrySchedule(void)
+{
+    LUOS_TCB *tcb;
+    int level;
+
+    level = intLock();
+    if (0 == __osinfo__.intNestedCnt) {
+        tickQWorkDoing();
+    }
+    tcb = currentTask();
+    if (tcb->lockCnt > 0) {
+        intUnlock(level);
+        return;
+    }
+
+    tcb = highReadyTaskGet();
+    if (currentTask() != tcb) {
+        __osinfo__.highestTcb = tcb;
+        if (0 == __osinfo__.intNestedCnt) {
             intUnlock(level);
             cpuTaskContextSwitchTrig(currentTask(), tcb);
             return;
@@ -381,17 +382,53 @@ STATUS i(void)
     return 0;
 }
 
-STATUS luosStart(void)
+static volatile UINT cpuIdleCnt = 0;
+static void *taskIdleEntry(void *arg) {
+    while (true) {
+        cpuIdleCnt++;
+    };
+    return NULL;
+}
+
+static inline void tcbActivate(TCB_ID tcb)
+{
+    int grp;
+    int off;
+    PriInfo_t *pri;
+    int  priority;
+    LUOS_INFO *osInfo = &__osinfo__;
+
+    pri = osInfo->priInfoTbl + tcb->priority;
+    tcb->status = TASK_READY;
+    taskReadyAdd(tcb);
+    list_del_init(&tcb->qNodeSched);
+    list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+}
+
+STATUS luosStart(START_RTN appStart, void *appArg, int stackSize)
 {
     int level;
+    TCB_ID tcb, tcb_idle, tcb_root;
 
-    level = intLock();
-    tickQworkWrIdx = 0;
-    tickQWorkRdIdx = 0;
-    osCoreInfo()->running = true;
+    if (stackSize <= 0) {
+        stackSize = 2 * 1024;
+    }
+
     timerLibInit();
+
+    tcb_root = (TCB_ID)taskCreate("tRoot", CONFIG_NUM_PRIORITY - 4, 0, stackSize, appStart, NULL);
+    while (NULL == tcb_root) {;}
+    tcb_idle = (TCB_ID)taskCreate("tIdle", CONFIG_NUM_PRIORITY - 1, 0, 512, taskIdleEntry, NULL);
+    while (NULL == tcb_idle) {;}
+    level = intLock();
+    tcbActivate(tcb_idle);
+    tcbActivate(tcb_root);
+    tcb = highReadyTaskGet();
+    __osinfo__.currentTcb = tcb;
+    __osinfo__.highestTcb = tcb;
+    osCoreInfo()->running = true;
     intUnlock(level);
-    coreTrySchedule();
+    cpuTaskContextSwitchTrig(currentTask(), tcb);
     return 0;
 }
 

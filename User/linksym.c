@@ -3,7 +3,6 @@
 
 extern int console_buffer[];
 extern int semMuxprint[];
-extern int cpuIdleCnt[];
 extern int cpuStatusCnt[];
 extern int dbg_print[];
 extern int numTocksQWork[];
@@ -91,6 +90,7 @@ extern void * taskName(void);
 extern void * taskPendQueGet(void);
 extern void * taskPendQuePut(void);
 extern void * taskPrioritySet(void);
+extern void * taskResume(void);
 extern void * taskSpawn(void);
 extern void * taskStatusStr(void);
 extern void * taskSuspend(void);
@@ -100,7 +100,7 @@ extern void * tickQWorkDoing(void);
 extern void * timerAdd(void);
 extern void * timerInit(void);
 extern void * timerLibInit(void);
-extern void * timerListDone(void);
+extern void * timerListDing(void);
 extern void * timerModify(void);
 extern void * timer_add_test(void);
 extern void * tolower(void);
@@ -152,7 +152,6 @@ static const TsymPara g_symTbl[] =
     {"coreTickDoing"                 , SYM_TYPE_T, coreTickDoing},
     {"coreTrySchedule"               , SYM_TYPE_T, coreTrySchedule},
     {"cpuCntLeadZeros"               , SYM_TYPE_T, cpuCntLeadZeros},
-    {"cpuIdleCnt"                    , SYM_TYPE_D, cpuIdleCnt},
     {"cpuIntLock"                    , SYM_TYPE_T, cpuIntLock},
     {"cpuIntUnlock"                  , SYM_TYPE_T, cpuIntUnlock},
     {"cpuRunningTaskStkGet"          , SYM_TYPE_T, cpuRunningTaskStkGet},
@@ -217,6 +216,7 @@ static const TsymPara g_symTbl[] =
     {"taskPendQueGet"                , SYM_TYPE_T, taskPendQueGet},
     {"taskPendQuePut"                , SYM_TYPE_T, taskPendQuePut},
     {"taskPrioritySet"               , SYM_TYPE_T, taskPrioritySet},
+    {"taskResume"                    , SYM_TYPE_T, taskResume},
     {"taskSpawn"                     , SYM_TYPE_T, taskSpawn},
     {"taskStatusStr"                 , SYM_TYPE_T, taskStatusStr},
     {"taskSuspend"                   , SYM_TYPE_T, taskSuspend},
@@ -228,7 +228,7 @@ static const TsymPara g_symTbl[] =
     {"timerAdd"                      , SYM_TYPE_T, timerAdd},
     {"timerInit"                     , SYM_TYPE_T, timerInit},
     {"timerLibInit"                  , SYM_TYPE_T, timerLibInit},
-    {"timerListDone"                 , SYM_TYPE_T, timerListDone},
+    {"timerListDing"                 , SYM_TYPE_T, timerListDing},
     {"timerModify"                   , SYM_TYPE_T, timerModify},
     {"timer_add_test"                , SYM_TYPE_T, timer_add_test},
     {"tmr_keep"                      , SYM_TYPE_D, tmr_keep},

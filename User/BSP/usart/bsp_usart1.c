@@ -151,7 +151,7 @@ int fgetc(FILE *f)
 
     // semTake(consoleSemId, WAIT_FOREVER);
     while (rxbuf_empty()) {
-        taskDelay(1);
+        taskDelay(2);
     }
 
     ch = uart_rx_buf[buf_rd_offset];

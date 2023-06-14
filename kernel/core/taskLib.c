@@ -167,23 +167,7 @@ STATUS taskInit(LUOS_TCB *tcb, char *name, int priority, int options,
 
 STATUS taskActivate(tid_t tid)
 {
-    int level;
-    LUOS_TCB *tcb;
-    PriInfo_t *pri;
-
-    tcb = (LUOS_TCB *)tid;
-    if (0 == tid || currentTask() == tcb) {
-        return OK;
-    }
-    level = intLock();
-    tcb->status = TASK_READY;
-    pri = osInfo->priInfoTbl + tcb->priority;
-    list_del_init(&tcb->qNodeSched);
-    list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-    taskReadyAdd(tcb);
-    intUnlock(level);
-    coreTrySchedule();
-    return 0;
+    return taskResume(tid);
 }
 
 tid_t taskSpawn(char *name, int priority, int options, int stackSize,
@@ -266,8 +250,7 @@ STATUS taskDelete(tid_t tid)
     }
     level = intLock();
     tcb = (LUOS_TCB *)tid;
-    list_del(&tcb->qNodeSched);
-    INIT_LIST_HEAD(&tcb->qNodeSched);
+    list_del_init(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status |= TASK_DEAD;
     intUnlock(level);
@@ -315,17 +298,19 @@ STATUS taskResume(tid_t tid)
         return OK;
     }
     level = intLock();
-    pri = osInfo->priInfoTbl + tcb->priority;
-
     tcb->status &= ~(TASK_SUSPEND/* | TASK_DELAY*/);
     if (TASK_READY == tcb->status) {
         list_del_init(&tcb->qNodeSched);
+        pri = osInfo->priInfoTbl + tcb->priority;
         list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
         taskReadyAdd(tcb);
+        intUnlock(level);
+        coreTrySchedule();
+        return OK;
     }
+
     intUnlock(level);
-    coreTrySchedule();
-    return 0;
+    return ERROR;
 }
 
 STATUS taskRestart(tid_t tid)

@@ -139,7 +139,7 @@ LOCAL void *timerTaskEntry(void *arg)
     return NULL;
 }
 
-void timerListDone(void)
+void timerListDing(void)
 {
     TLIST *node;
     timerList_t *tmr, *tdel;
@@ -168,17 +168,22 @@ void timerListDone(void)
         tdel = NULL;
     }
     if (qTimerExpires.numItem > 0) {
-        // taskResume((tid_t)taskIdTimer);
-        LUOS_TCB *tcb = taskIdTimer;
-        PriInfo_t *pri = osInfo->priInfoTbl + tcb->priority;
+#if 1
+         PriInfo_t *pri;
+         LUOS_TCB *tcb = taskIdTimer;
 
-        tcb->status &= ~(TASK_SUSPEND/* | TASK_DELAY*/);
-        if (TASK_READY == tcb->status) {
-            list_del_init(&tcb->qNodeSched);
-            list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-            taskReadyAdd(tcb);
-        }
-
+         tcb->status &= ~(TASK_SUSPEND/* | TASK_DELAY*/);
+         if (TASK_READY == tcb->status) {
+             list_del_init(&tcb->qNodeSched);
+             pri = osInfo->priInfoTbl + tcb->priority;
+             list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+             taskReadyAdd(tcb);
+         }
+#else
+         taskLock();
+         taskResume((tid_t)taskIdTimer);
+         taskUnlock();
+#endif
     }
 }
 

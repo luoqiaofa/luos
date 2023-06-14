@@ -166,7 +166,7 @@ void coreIntExit(void);
 extern STATUS i(void);
 extern STATUS tickQWorkDoing(void);
 extern void tickAnnounce(void);
-extern STATUS luosStart(void);
+extern STATUS luosStart(START_RTN appStart, void *appArg, int stackSize);
 
 #endif /* #ifndef __OSCORE_H__ */
 
