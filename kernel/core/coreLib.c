@@ -273,7 +273,7 @@ void coreContextHook(void)
     tcb->schedCnt++;
 }
 
-uint32_t sysClkTicksGet(void)
+uint32_t sysClkTickGet(void)
 {
     return osCoreInfo()->sysTicksCnt;
 }
@@ -390,20 +390,6 @@ static void *taskIdleEntry(void *arg) {
     return NULL;
 }
 
-static inline void tcbActivate(TCB_ID tcb)
-{
-    int grp;
-    int off;
-    PriInfo_t *pri;
-    int  priority;
-    LUOS_INFO *osInfo = &__osinfo__;
-
-    pri = osInfo->priInfoTbl + tcb->priority;
-    tcb->status = TASK_READY;
-    taskReadyAdd(tcb);
-    list_del_init(&tcb->qNodeSched);
-    list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-}
 
 STATUS luosStart(START_RTN appStart, void *appArg, int stackSize)
 {

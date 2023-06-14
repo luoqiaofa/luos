@@ -64,8 +64,6 @@ STATUS timerInit(timerid_t tmrid, cputime_t expires, TIMER_CB cb, void *arg)
 STATUS timerAdd(timerid_t tmrid)
 {
     int level;
-    LUOS_INFO *osInfo;
-    osInfo = &__osinfo__;
 
     level = intLock();
     timerQAdd(&qTimerWait, (timerList_t *)tmrid);
@@ -75,13 +73,6 @@ STATUS timerAdd(timerid_t tmrid)
 
 STATUS timerDelete(timerid_t tmrid)
 {
-    int level;
-    LUOS_INFO *osInfo;
-    osInfo = &__osinfo__;
-
-    level = intLock();
-    // timerQRemove(&osInfo->qTmrWait, (timerList_t *)tmrid);
-    intUnlock(level);
     return OK;
 }
 
@@ -100,7 +91,6 @@ LOCAL void *timerTaskEntry(void *arg)
 {
     int level;
     TLIST *node, newhead;
-    uint32_t idx, num;
     timerList_t *tmr;
 
     while (1) {
@@ -110,14 +100,12 @@ LOCAL void *timerTaskEntry(void *arg)
             taskSuspend(taskIdSelf());
             continue;
         }
-        num = qTimerExpires.numItem;
+        // num = qTimerExpires.numItem;
         list_replace(&qTimerExpires.list, &newhead);
         timerQInit(&qTimerExpires);
         intUnlock(level);
-        idx = 0;
         tmr = NULL;
         list_for_each(node, &newhead) {
-            idx++;
             if (NULL != tmr) {
                 list_del_init(&tmr->entry);
                 if (NULL != tmr->callback) {
@@ -169,16 +157,7 @@ void timerListDing(void)
     }
     if (qTimerExpires.numItem > 0) {
 #if 1
-         PriInfo_t *pri;
-         LUOS_TCB *tcb = taskIdTimer;
-
-         tcb->status &= ~(TASK_SUSPEND/* | TASK_DELAY*/);
-         if (TASK_READY == tcb->status) {
-             list_del_init(&tcb->qNodeSched);
-             pri = osInfo->priInfoTbl + tcb->priority;
-             list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-             taskReadyAdd(tcb);
-         }
+         tcbActivate(taskIdTimer);
 #else
          taskLock();
          taskResume((tid_t)taskIdTimer);

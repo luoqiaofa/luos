@@ -2,22 +2,23 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : taskLibP.h
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-30 09:40:41 AM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-30
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
 #ifndef __TASKLIBP_H__
 #define __TASKLIBP_H__
+
 tid_t taskCreate(char *name, int priority, int options, int stackSize,
                 START_RTN taskEntry, void *arg);
 IMPORT STATUS taskQReadyPut(TCB_ID tcb);

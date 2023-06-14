@@ -20,11 +20,11 @@
 #define __OSCORE_H__
 #include "osTypes.h"
 #include "semLib.h"
-#include "taskLib.h"
-#include "taskLibP.h"
 #include "semLib.h"
 #include "memPartLib.h"
 #include "timerLib.h"
+#include "taskLib.h"
+#include "taskLibP.h"
 
 
 #ifndef CONFIG_NUM_PRIORITY
@@ -153,6 +153,23 @@ static inline void taskReadyAdd(TCB_ID tcb)
     __osinfo__.readyPriGrp      |= (1 << (BITS_PER_LONG - 1 - grp));
 }
 
+static inline void tcbActivate(TCB_ID tcb)
+{
+    PriInfo_t *pri;
+    LUOS_INFO *osInfo = &__osinfo__;
+
+    if (TASK_READY == tcb->status) {
+        return ;
+    }
+    tcb->status &= ~TASK_SUSPEND;
+    if (TASK_READY == tcb->status) {
+        taskReadyAdd(tcb);
+        list_del_init(&tcb->qNodeSched);
+        pri = osInfo->priInfoTbl + tcb->priority;
+        list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+    }
+}
+
 extern STATUS coreLibInit(void);
 extern void * osMemAlloc(size_t nbytes);
 extern STATUS osMemFree(void *ptr);
@@ -160,7 +177,7 @@ extern void coreTrySchedule(void);
 STATUS coreTickDoing(void);
 extern STATUS sysClkRateSet(int ticksPerSecond);
 extern int sysClkRateGet(void);
-extern uint32_t sysClkTicksGet(void);
+extern uint32_t sysClkTickGet(void);
 void coreIntEnter(void);
 void coreIntExit(void);
 extern STATUS i(void);

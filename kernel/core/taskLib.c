@@ -22,6 +22,12 @@
 #include <stdio.h>
 #include "coreLib.h"
 
+typedef struct task_del_timer {
+    TCB_ID      tcb;
+    timerList_t timer;
+} tTaskDelTimer;
+
+
 LOCAL LUOS_INFO * osInfo = &__osinfo__;
 LOCAL BOOL taskLibInstalled = false;
 extern void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn);
@@ -63,7 +69,8 @@ tid_t taskCreate(char *name, int priority, int options, int stackSize,
 #ifdef CONFIG_STACK_GROWSUP
     tcb = (LUOS_TCB *)p1;
     memset(tcb, 0, sizeof(*tcb));
-    ulPtr = (ULONG)(p1 + sizeof(LUOS_TCB));
+    p1 += sizeof(LUOS_TCB);
+    ulPtr = (ULONG)p1;
     ulPtr = STACK_ROUND_UP(ulPtr);
     tcb->stkBase = (void *)ulPtr;
 #else
@@ -83,6 +90,63 @@ tid_t taskCreate(char *name, int priority, int options, int stackSize,
     return (tid_t)tcb;
 }
 
+
+static int taskDelTimer(void *arg)
+{
+    int rc = 0;
+    int level;
+    TCB_ID tcb;
+    timerList_t *tmr;
+    SEM_ID semId;
+    cputime_t expires;
+    tTaskDelTimer *tdel = (tTaskDelTimer *)arg;
+
+    if (NULL == tdel) return -1;
+    tcb = tdel->tcb;
+    if (NULL == tcb)  return -2;
+
+    if (TASK_DEAD != tcb->status) {
+        rc =-3;
+        goto tmr_del_loop;
+    }
+    semId = &tcb->semJoinExit;
+    if (0 == semId->semCount && list_empty(&semId->qPendHead)) {
+        level = intLock();
+        list_del_init(&tcb->qNodeSched);
+        intUnlock(level);
+        printf("task %s will be really deleted\n", tcb->name);
+        #ifdef CONFIG_STACK_GROWSUP
+        osMemFree(tcb);
+        #else
+        osMemFree(tcb->stkBase);
+        #endif
+        osMemFree(tdel);
+        return rc;
+    }
+tmr_del_loop:
+    tmr = &tdel->timer;
+    expires = sysClkTickGet();
+    expires += sysClkRateGet();
+    timerModify((timerid_t)tmr, expires);
+    return rc;
+}
+
+static void taskDelDefer(TCB_ID tcb)
+{
+    timerList_t *tmr;
+    cputime_t expires;
+    tTaskDelTimer *tdel;
+
+    tdel = (tTaskDelTimer *)osMemAlloc(sizeof(tTaskDelTimer));
+    if (NULL == tdel) return;
+    tdel->tcb = tcb;
+    tmr = &tdel->timer;
+    expires = sysClkTickGet();
+    expires += sysClkRateGet();
+    timerInit((timerid_t)tmr, expires, taskDelTimer, tdel);
+    timerAdd((timerid_t)tmr);
+}
+
 static int taskReturn(void)
 {
     TCB_ID tcb;
@@ -96,6 +160,7 @@ static int taskReturn(void)
     list_add(&tcb->qNodeSched, &osInfo->qPendHead);
     taskReadyRemove(tcb);
     tcb->status = TASK_DEAD;
+    taskDelDefer(tcb);
     intUnlock(level);
     semFlush(&tcb->semJoinExit);
     coreTrySchedule();

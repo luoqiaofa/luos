@@ -75,7 +75,7 @@ extern void * strStrip(void);
 extern void * strToInt(void);
 extern void * sysClkRateGet(void);
 extern void * sysClkRateSet(void);
-extern void * sysClkTicksGet(void);
+extern void * sysClkTickGet(void);
 extern void * SysReset(void);
 extern void * SystemInit(void);
 extern void * taskActivate(void);
@@ -203,7 +203,7 @@ static const TsymPara g_symTbl[] =
     {"strToInt"                      , SYM_TYPE_T, strToInt},
     {"sysClkRateGet"                 , SYM_TYPE_T, sysClkRateGet},
     {"sysClkRateSet"                 , SYM_TYPE_T, sysClkRateSet},
-    {"sysClkTicksGet"                , SYM_TYPE_T, sysClkTicksGet},
+    {"sysClkTickGet"                , SYM_TYPE_T, sysClkTickGet},
     {"taskActivate"                  , SYM_TYPE_T, taskActivate},
     {"taskCreate"                    , SYM_TYPE_T, taskCreate},
     {"taskDelay"                     , SYM_TYPE_T, taskDelay},

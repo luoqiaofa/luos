@@ -21,7 +21,7 @@ char console_buffer[CONFIG_SYS_CBSIZE + 1];    /* console I/O buffer    */
 
 static inline uint32_t get_ticks(void)
 {
-    return sysClkTicksGet();
+    return sysClkTickGet();
 }
 
 #define endtick(seconds) (get_ticks() + (uint32_t)(seconds) * sysClkRateGet())

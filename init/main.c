@@ -76,7 +76,7 @@ LOCAL int timer_expire(void *arg)
     }
 
     if (tmr_keep) {
-        expires = sysClkTicksGet();
+        expires = sysClkTickGet();
         expires += sysClkRateGet();
         timerModify((timerid_t)&timerL, expires);
     }
@@ -85,7 +85,7 @@ LOCAL int timer_expire(void *arg)
 
 int timer_add_test(void)
 {
-    cputime_t expires = sysClkTicksGet();
+    cputime_t expires = sysClkTickGet();
 
     expires += sysClkRateGet();
     timerInit((timerid_t)&timerL, expires, timer_expire, NULL);
