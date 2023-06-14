@@ -297,16 +297,41 @@ void coreScheduleDisable(void)
 STATUS i(void)
 {
     TCB_ID tcb;
+    TCB_ID tcbs;
     TLIST *node;
     int priority;
     PriInfo_t *pri;
     cpudata_t grp, off;
     LUOS_INFO *osInfo = osCoreInfo();
     uint32_t ntick;
+    uint32_t idx, num;
 
+    num = 0;
     taskLock();
-    log("###############################################################################");
-    log("Name         TID    Pri   Status stkBase     Stack  stkSize");
+    for(grp = 0; grp < NLONG_PRIORITY; grp++) {
+        if (0 != osInfo->readyPriTbl[grp]) {
+            for (off = 0; off < BITS_PER_LONG; off++) {
+                if (osInfo->readyPriTbl[grp] & (1 << (BITS_PER_LONG - 1 - off))) {
+                    priority = grp * BITS_PER_LONG + off;
+                    pri = osInfo->priInfoTbl + priority;
+                    num += pri->numTask;
+                }
+            }
+        }
+    }
+    list_for_each(node, &osInfo->qDelayHead) {
+        num++;
+    }
+    list_for_each(node, &osInfo->qPendHead) {
+        num++;
+    }
+    tcbs = osMemAlloc(num * sizeof(*tcb));
+    if (NULL == tcbs) {
+        taskUnlock();
+        log("[%s] osMemAlloc failed", __func__);
+        return 0;
+    }
+    idx = 0;
     for(grp = 0; grp < NLONG_PRIORITY; grp++) {
         if (0 != osInfo->readyPriTbl[grp]) {
             for (off = 0; off < BITS_PER_LONG; off++) {
@@ -315,14 +340,8 @@ STATUS i(void)
                     pri = osInfo->priInfoTbl + priority;
                     list_for_each(node, &pri->qReadyHead) {
                         tcb = list_entry(node, LUOS_TCB, qNodeSched);
-                        log("%-10s %p %-4d %7s %p %p %8d", \
-                                tcb->name, \
-                                tcb,               \
-                                tcb->priority, \
-                                taskStatusStr(tcb), \
-                                tcb->stkBase, \
-                                tcb->stack,    \
-                                tcb->stkSize);
+                        memcpy(tcbs + idx, tcb, sizeof(*tcb));
+                        idx++;
                     }
                 }
             }
@@ -330,30 +349,34 @@ STATUS i(void)
     }
     list_for_each(node, &osInfo->qDelayHead) {
         tcb = list_entry(node, LUOS_TCB, qNodeSched);
-        log("%-10s %p %-4d %7s %p %p %8d", \
-                tcb->name, \
-                tcb,               \
-                tcb->priority, \
-                taskStatusStr(tcb), \
-                tcb->stkBase, \
-                tcb->stack,    \
-                tcb->stkSize);
+        memcpy(tcbs + idx, tcb, sizeof(*tcb));
+        idx++;
     }
     list_for_each(node, &osInfo->qPendHead) {
         tcb = list_entry(node, LUOS_TCB, qNodeSched);
-        log("%-10s %p %-4d %7s %p %p %8d", \
+        memcpy(tcbs + idx, tcb, sizeof(*tcb));
+        idx++;
+    }
+    ntick = numTocksQWork ;
+    taskUnlock();
+
+    log("###############################################################################");
+    log("Name         TID    Pri   Status stkBase     Stack  stkSize schedCnt runTicks");
+    for (idx = 0; idx < num; idx++) {
+        tcb = tcbs + idx;
+        log("%-10s %p %-4d %7s %p %p %8d %8d %8d", \
                 tcb->name, \
                 tcb,               \
                 tcb->priority, \
                 taskStatusStr(tcb), \
                 tcb->stkBase, \
                 tcb->stack,    \
-                tcb->stkSize);
+                tcb->stkSize,
+                tcb->schedCnt,
+                tcb->runTicksCnt);
     }
     log("###############################################################################");
-    ntick = numTocksQWork ;
-
-    taskUnlock();
+    osMemFree(tcbs);
     // log("ntick=%u", ntick);
     return 0;
 }
