@@ -98,7 +98,7 @@ volatile int16_t numTocksQWork = 0;
 void tickAnnounce(void)
 {
     TCB_ID tcb = currentTask();
-    if (0 == tcb->lockCnt) {
+    if (!taskLocked()) {
         tickQWorkDoing();
         coreTickDoing();
     } else {
@@ -129,7 +129,7 @@ STATUS coreTickDoing(void)
     PriInfo_t *pri;
     TCB_ID tcb = currentTask();
 
-    if (tcb->lockCnt > 0) {
+    if (taskLocked()) {
         return ERROR;
     }
 
@@ -173,9 +173,7 @@ STATUS coreTickDoing(void)
             tcb->sliceTicksCnt++;
         }
     }
-    if (tcb->lockCnt > 0) {
-        return ERROR;
-    }
+
     if (pri->numTask > 1) {
         if (SCHED_RR == pri->schedPolicy) {
             if (tcb->sliceTicksCnt >= pri->sliceTicks) {
@@ -190,33 +188,6 @@ STATUS coreTickDoing(void)
     return 0;
 }
 
-static inline TCB_ID highReadyTaskGet(void)
-{
-    int grp;
-    int off;
-    LUOS_TCB *tcb;
-    PriInfo_t *pri;
-    int  priority;
-    LUOS_INFO *osInfo;
-
-    osInfo = &__osinfo__;
-    grp = cpuCntLeadZeros(osInfo->readyPriGrp);
-    while (grp >= NLONG_PRIORITY) {
-        ;/* hang here */
-    }
-    off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
-    while (off >= BITS_PER_LONG) {
-       ;/* hang here */
-    }
-    priority = grp * BITS_PER_LONG + off;
-    pri = __osinfo__.priInfoTbl + priority;
-    while (list_empty(&pri->qReadyHead)) {
-        ;/* hang here */
-    }
-    tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
-    while (NULL == tcb) {;/* hang here */}
-    return tcb;
-}
 
 void coreTrySchedule(void)
 {
@@ -226,7 +197,7 @@ void coreTrySchedule(void)
     level = intLock();
 
     tcb = currentTask();
-    if (tcb->lockCnt > 0) {
+    if (taskLocked()) {
         intUnlock(level);
         return;
     }
@@ -305,6 +276,7 @@ STATUS i(void)
     LUOS_INFO *osInfo = osCoreInfo();
     uint32_t ntick;
     uint32_t idx, num;
+    char tname[11];
 
     num = 0;
     taskLock();
@@ -367,14 +339,15 @@ STATUS i(void)
     ntick = numTocksQWork ;
     taskUnlock();
     // intUnlock(level);
-
+    tname[10] = '\0';
     log("###############################################################################");
-    log("Name         TID    Pri   Status stkBase     Stack  stkSize schedCnt runTicks");
+    log("Name         TID      Pri   Status stkBase     Stack  stkSize schedCnt runTicks");
     for (idx = 0; idx < num; idx++) {
         tcb = tcbs + idx;
-        log("%-10s %p %-4d %7s %p %p %8d %8d %8d", \
-                ptcbs[idx]->name, \
-                ptcbs[idx],               \
+        strncpy(tname, ptcbs[idx]->name, 10);
+        log("%-10s %10u %-4d %7s %p %p %8d %8d %8d", \
+                tname, \
+                (UINT)ptcbs[idx],               \
                 tcb->priority, \
                 taskStatusStr(tcb), \
                 tcb->stkBase, \

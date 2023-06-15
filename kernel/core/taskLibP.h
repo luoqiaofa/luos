@@ -19,6 +19,8 @@
 #ifndef __TASKLIBP_H__
 #define __TASKLIBP_H__
 
+#define taskLocked()  (currentTask()->lockCnt > 0)
+
 tid_t taskCreate(char *name, int priority, int options, int stackSize,
                 START_RTN taskEntry, void *arg);
 IMPORT STATUS taskQReadyPut(TCB_ID tcb);

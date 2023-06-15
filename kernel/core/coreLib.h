@@ -172,6 +172,34 @@ static inline void tcbActivate(TCB_ID tcb)
     }
 }
 
+static inline TCB_ID highReadyTaskGet(void)
+{
+    int grp;
+    int off;
+    LUOS_TCB *tcb;
+    PriInfo_t *pri;
+    int  priority;
+    LUOS_INFO *osInfo;
+
+    osInfo = &__osinfo__;
+    grp = cpuCntLeadZeros(osInfo->readyPriGrp);
+    while (grp >= NLONG_PRIORITY) {
+        ;/* hang here */
+    }
+    off = cpuCntLeadZeros(osInfo->readyPriTbl[grp]);
+    while (off >= BITS_PER_LONG) {
+       ;/* hang here */
+    }
+    priority = grp * BITS_PER_LONG + off;
+    pri = __osinfo__.priInfoTbl + priority;
+    while (list_empty(&pri->qReadyHead)) {
+        ;/* hang here */
+    }
+    tcb = list_first_entry(&pri->qReadyHead, LUOS_TCB, qNodeSched);
+    while (NULL == tcb) {;/* hang here */}
+    return tcb;
+}
+
 extern STATUS coreLibInit(void);
 extern void * osMemAlloc(size_t nbytes);
 extern STATUS osMemFree(void *ptr);

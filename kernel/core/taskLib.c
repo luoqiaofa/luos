@@ -402,6 +402,7 @@ STATUS taskPrioritySet(tid_t tid, int newPriority)
 {
     int level;
     TCB_ID tcb;
+    TCB_ID htcb;
     SEM_ID semId;
     int priOri;
 
@@ -419,18 +420,18 @@ STATUS taskPrioritySet(tid_t tid, int newPriority)
     if (TASK_READY == tcb->status) {
         taskReadyRemove(tcb);
         tcb->priority = newPriority;
+        htcb = highReadyTaskGet();
         if (tcb == currentTask()) {
-            if (priOri > newPriority) {
+            if (newPriority <= htcb->priority
+             || taskLocked()) {
                 taskReadyAdd(tcb, false);
                 intUnlock(level);
                 return OK;
             }
-            taskReadyAdd(tcb, true);
-        } else {
-            taskReadyAdd(tcb, true);
         }
+        taskReadyAdd(tcb, true);
         intUnlock(level);
-        if (priOri > newPriority) {
+        if (htcb->priority < newPriority) {
             coreTrySchedule();
         }
         return OK;
@@ -438,8 +439,11 @@ STATUS taskPrioritySet(tid_t tid, int newPriority)
     tcb->priority = newPriority;
     if (TASK_PEND & tcb->status) {
         semId = tcb->semIdPended;
-        list_del_init(&tcb->qNodePend);
-        taskPendQuePut(tcb, semId);
+        if (SEM_Q_PRIORITY == (semId->options & SEM_Q_MASK)) {
+            /* resort the sem pendQ */
+            list_del_init(&tcb->qNodePend);
+            taskPendQuePut(tcb, semId);
+        }
     }
     intUnlock(level);
     return OK;
