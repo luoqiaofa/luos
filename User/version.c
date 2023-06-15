@@ -5,7 +5,7 @@
 int version(void)
 {
     printf("\n############################################\n");
-    printf("# RTOS: luos, version: 2023-06-14 17:57:00 #\n");
+    printf("# RTOS: luos, version: 2023-06-15 14:29:39 #\n");
     printf("############################################\n\n");
 
     return 0;

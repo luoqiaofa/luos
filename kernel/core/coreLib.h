@@ -28,7 +28,7 @@
 
 
 #ifndef CONFIG_NUM_PRIORITY
-#define CONFIG_NUM_PRIORITY 256 /* 64/256/1024/4096 */
+#define CONFIG_NUM_PRIORITY 64 /* 64/256/1024/4096 */
 #endif
 #ifndef BITS_PER_LONG
 #define BITS_PER_LONG 32
@@ -62,7 +62,7 @@
 typedef struct priorityInfo {
   /* uint32_t priority; */
   int      schedPolicy;
-  UINT     numTask;
+  int      numTask;
   TLIST    qReadyHead;
   uint32_t sliceTicks;
 } PriInfo_t;
@@ -129,6 +129,8 @@ static inline void taskReadyRemove(TCB_ID tcb)
     PriInfo_t *pri = __osinfo__.priInfoTbl + tcb->priority;
 
     pri->numTask--;
+    list_del_init(&tcb->qNodeSched);
+    while (pri->numTask < 0) {;}
     grp = priorityGroup(tcb->priority);
     off = priorityOffset(tcb->priority);
     if (0 == pri->numTask) {
@@ -139,7 +141,7 @@ static inline void taskReadyRemove(TCB_ID tcb)
     }
 }
 
-static inline void taskReadyAdd(TCB_ID tcb)
+static inline void taskReadyAdd(TCB_ID tcb, BOOL toTail)
 {
     int grp;
     int off;
@@ -151,22 +153,22 @@ static inline void taskReadyAdd(TCB_ID tcb)
     off = priorityOffset(tcb->priority);
     __osinfo__.readyPriTbl[grp] |= (1 << (BITS_PER_LONG - 1 - off));
     __osinfo__.readyPriGrp      |= (1 << (BITS_PER_LONG - 1 - grp));
+    if (!toTail) {
+        list_add(&tcb->qNodeSched, &pri->qReadyHead);
+    } else {
+        list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+    }
 }
 
 static inline void tcbActivate(TCB_ID tcb)
 {
-    PriInfo_t *pri;
-    LUOS_INFO *osInfo = &__osinfo__;
-
     if (TASK_READY == tcb->status) {
         return ;
     }
     tcb->status &= ~TASK_SUSPEND;
     if (TASK_READY == tcb->status) {
-        taskReadyAdd(tcb);
         list_del_init(&tcb->qNodeSched);
-        pri = osInfo->priInfoTbl + tcb->priority;
-        list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+        taskReadyAdd(tcb, true);
     }
 }
 

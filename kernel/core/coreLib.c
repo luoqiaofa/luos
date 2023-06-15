@@ -142,9 +142,7 @@ STATUS coreTickDoing(void)
         if (NULL != node_del) {
             list_del(node_del);
             tcb = list_entry(node_del, LUOS_TCB, qNodeSched);
-            pri = osInfo->priInfoTbl + tcb->priority;
-            list_add_tail(node_del, &pri->qReadyHead);
-            taskReadyAdd(tcb);
+            taskReadyAdd(tcb, true);
             node_del = NULL;
         }
         tcb = list_entry(node, LUOS_TCB, qNodeSched);
@@ -163,11 +161,9 @@ STATUS coreTickDoing(void)
         }
     }
     if (NULL != node_del) {
-        list_del(node_del);
+        list_del_init(node_del);
         tcb = list_entry(node_del, LUOS_TCB, qNodeSched);
-        pri = osInfo->priInfoTbl + tcb->priority;
-        list_add_tail(node_del, &pri->qReadyHead);
-        taskReadyAdd(tcb);
+        taskReadyAdd(tcb, true);
         node_del = NULL;
     }
     tcb = currentTask();
@@ -183,7 +179,7 @@ STATUS coreTickDoing(void)
     if (pri->numTask > 1) {
         if (SCHED_RR == pri->schedPolicy) {
             if (tcb->sliceTicksCnt >= pri->sliceTicks) {
-                list_del(&tcb->qNodeSched);
+                list_del_init(&tcb->qNodeSched);
                 list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
                 tcb->sliceTicksCnt = 0;
             }
@@ -228,13 +224,14 @@ void coreTrySchedule(void)
     int level;
 
     level = intLock();
-    if (0 == __osinfo__.intNestedCnt) {
-        tickQWorkDoing();
-    }
+
     tcb = currentTask();
     if (tcb->lockCnt > 0) {
         intUnlock(level);
         return;
+    }
+    if (0 == __osinfo__.intNestedCnt) {
+        tickQWorkDoing();
     }
 
     tcb = highReadyTaskGet();
@@ -297,6 +294,7 @@ void coreScheduleDisable(void)
 #define log(fmt, args...) printf(fmt " \n", ## args)
 STATUS i(void)
 {
+    // int level;
     TCB_ID tcb;
     TCB_ID tcbs;
     TLIST *node;
@@ -309,13 +307,16 @@ STATUS i(void)
 
     num = 0;
     taskLock();
+    // level = intLock();
     for(grp = 0; grp < NLONG_PRIORITY; grp++) {
         if (0 != osInfo->readyPriTbl[grp]) {
             for (off = 0; off < BITS_PER_LONG; off++) {
                 if (osInfo->readyPriTbl[grp] & (1 << (BITS_PER_LONG - 1 - off))) {
                     priority = grp * BITS_PER_LONG + off;
                     pri = osInfo->priInfoTbl + priority;
-                    num += pri->numTask;
+                    list_for_each(node, &pri->qReadyHead) {
+                        num++;
+                    }
                 }
             }
         }
@@ -360,6 +361,7 @@ STATUS i(void)
     }
     ntick = numTocksQWork ;
     taskUnlock();
+    // intUnlock(level);
 
     log("###############################################################################");
     log("Name         TID    Pri   Status stkBase     Stack  stkSize schedCnt runTicks");

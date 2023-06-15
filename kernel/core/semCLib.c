@@ -111,7 +111,6 @@ again:
     }
     tcb = currentTask();
     // pri = osInfo->priInfoTbl + tcb->priority;
-    list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status |= TASK_PEND;
     if (WAIT_FOREVER != timeout) {
@@ -154,10 +153,8 @@ STATUS semCFlush(SEM_ID id)
             tcb = list_entry(n2, LUOS_TCB, qNodePend);
             tcb->status &= ~(TASK_PEND | TASK_DELAY);
             if (TASK_READY == tcb->status) {
-                list_del(&tcb->qNodeSched);
-                pri = osCoreInfo()->priInfoTbl + tcb->priority;
-                list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-                taskReadyAdd(tcb);
+                list_del_init(&tcb->qNodeSched);
+                taskReadyAdd(tcb, true);
             }
             n2 = NULL;
         }
@@ -169,9 +166,7 @@ STATUS semCFlush(SEM_ID id)
         tcb->status &= ~(TASK_PEND | TASK_DELAY);
         if (TASK_READY == tcb->status) {
             list_del(&tcb->qNodeSched);
-            pri = osCoreInfo()->priInfoTbl + tcb->priority;
-            list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-            taskReadyAdd(tcb);
+            taskReadyAdd(tcb, true);
         }
         n2 = NULL;
     }

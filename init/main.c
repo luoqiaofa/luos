@@ -43,9 +43,9 @@ static SEM_ID semIds[9];
 volatile UINT cpuStatusCnt = 0;
 static void *taskStatus(void *arg) {
     // i();
-    printf("[%s] enter\n", taskName(taskIdSelf()));
+    Printf("[%s] enter\n", taskName(taskIdSelf()));
     semTake(semIds[0], WAIT_FOREVER);
-    printf("[%s]wait someone task exit ok\n", taskName(taskIdSelf()));
+    Printf("[%s]wait someone task exit ok\n", taskName(taskIdSelf()));
     while (true) {
         cpuStatusCnt++;
         taskDelay(2);
@@ -107,12 +107,12 @@ static void *taskRtn1(void *arg)
 
     sysClkRateSet(CONFIG_HZ);
 
-    taskSpawn("t2",     10, 0, 1024, taskRtn2, semId);
-    taskSpawn("tStat", 252, 0, 512,  taskStatus, NULL);
+    taskSpawn("t2",     10, 0, 4096, taskRtn2, semId);
+    taskSpawn("tStat", CONFIG_NUM_PRIORITY-4, 0, 512,  taskStatus, NULL);
 #if 1
     for (cnt = 0; cnt < 9; cnt++) {
         tname[4] = '1' + cnt;
-        tid = taskSpawn(tname,  253, 0, 512,  taskOneshort, (void *)(15-cnt));
+        tid = taskSpawn(tname,  CONFIG_NUM_PRIORITY-3, 0, 512,  taskOneshort, (void *)(1));
         tcb = (TCB_ID)tid;
         semIds[cnt] = &(tcb->semJoinExit);
         if (tid == (tid_t)0) {

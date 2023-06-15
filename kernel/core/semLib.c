@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : semLib.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-05-29 09:52:41 AM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-05-29
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -138,10 +138,8 @@ STATUS semFlush(SEM_ID id)
             tcb = list_entry(n2, LUOS_TCB, qNodePend);
             tcb->status &= ~(TASK_PEND | TASK_DELAY);
             if (TASK_READY == tcb->status) {
-                list_del(&tcb->qNodeSched);
-                pri = osCoreInfo()->priInfoTbl + tcb->priority;
-                list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-                taskReadyAdd(tcb);
+                list_del_init(&tcb->qNodeSched);
+                taskReadyAdd(tcb, true);
             }
             n2 = NULL;
         }
@@ -152,10 +150,8 @@ STATUS semFlush(SEM_ID id)
         tcb = list_entry(n2, LUOS_TCB, qNodePend);
         tcb->status &= ~(TASK_PEND | TASK_DELAY);
         if (TASK_READY == tcb->status) {
-            list_del(&tcb->qNodeSched);
-            pri = osCoreInfo()->priInfoTbl + tcb->priority;
-            list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-            taskReadyAdd(tcb);
+            list_del_init(&tcb->qNodeSched);
+            taskReadyAdd(tcb, true);
         }
         n2 = NULL;
     }
@@ -163,7 +159,7 @@ STATUS semFlush(SEM_ID id)
         id->semCount = num;
     }
     intUnlock(level);
-    coreTrySchedule(); 
+    coreTrySchedule();
     return OK;
 }
 

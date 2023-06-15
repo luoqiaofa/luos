@@ -139,7 +139,6 @@ again:
         return ERROR;
     }
     // pri = osInfo->priInfoTbl + tcb->priority;
-    list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status |= TASK_PEND;
     if (WAIT_FOREVER != timeout) {

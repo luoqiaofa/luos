@@ -21,7 +21,7 @@
  ******************************************************************************/
 #include <stdio.h>
 #include "coreLib.h"
-
+extern int Printf(const char *fmt, ...);
 typedef struct task_del_timer {
     TCB_ID      tcb;
     timerList_t timer;
@@ -114,7 +114,7 @@ static int taskDelTimer(void *arg)
         level = intLock();
         list_del_init(&tcb->qNodeSched);
         intUnlock(level);
-        printf("task %s will be really deleted\n", tcb->name);
+        Printf("task %s will be really deleted\n", tcb->name);
         #ifdef CONFIG_STACK_GROWSUP
         osMemFree(tcb);
         #else
@@ -156,9 +156,8 @@ static int taskReturn(void)
     tcb = currentTask();
     // printf("task[%s]tid=%p, exit!\n", tcb->name, tcb);
     level = intLock();
-    list_del_init(&tcb->qNodeSched);
-    list_add(&tcb->qNodeSched, &osInfo->qPendHead);
     taskReadyRemove(tcb);
+    list_add(&tcb->qNodeSched, &osInfo->qPendHead);
     tcb->status = TASK_DEAD;
     taskDelDefer(tcb);
     intUnlock(level);
@@ -284,7 +283,6 @@ STATUS taskDelay(int ticks)
     level = intLock();
     tcb = currentTask();
     tcb->dlyTicks = ticks;
-    list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status = TASK_DELAY;
     list_add_tail(&tcb->qNodeSched, &osInfo->qDelayHead);
@@ -315,7 +313,6 @@ STATUS taskDelete(tid_t tid)
     }
     level = intLock();
     tcb = (LUOS_TCB *)tid;
-    list_del_init(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->status |= TASK_DEAD;
     intUnlock(level);
@@ -338,9 +335,8 @@ STATUS taskSuspend(tid_t tid)
 
     if (TASK_READY == tcb->status) {
         if (NULL == tcb->semIdOwner) {
-            tcb->status |= TASK_SUSPEND;
-            list_del_init(&tcb->qNodeSched);
             taskReadyRemove(tcb);
+            tcb->status |= TASK_SUSPEND;
             list_add(&tcb->qNodeSched, &osInfo->qPendHead);
             intUnlock(level);
             coreTrySchedule();
@@ -355,20 +351,20 @@ STATUS taskSuspend(tid_t tid)
 STATUS taskResume(tid_t tid)
 {
     LUOS_TCB *tcb;
-    PriInfo_t *pri;
     int level;
 
     tcb = (LUOS_TCB *)tid;
     if (0 == tid || currentTask() == tcb) {
         return OK;
     }
+    if (TASK_READY == tcb->status) {
+        return OK;
+    }
     level = intLock();
     tcb->status &= ~(TASK_SUSPEND/* | TASK_DELAY*/);
     if (TASK_READY == tcb->status) {
         list_del_init(&tcb->qNodeSched);
-        pri = osInfo->priInfoTbl + tcb->priority;
-        list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-        taskReadyAdd(tcb);
+        taskReadyAdd(tcb, true);
         intUnlock(level);
         coreTrySchedule();
         return OK;
@@ -390,8 +386,10 @@ STATUS taskRestart(tid_t tid)
     if (tcb == currentTask()) {
         return -1;
     }
-    list_del(&tcb->qNodeSched);
-    taskReadyRemove(tcb);
+    if (TASK_READY == tcb->status) {
+        taskReadyRemove(tcb);
+    }
+    list_del_init(&tcb->qNodeSched);
     rc = taskInit(tcb, tcb->name, tcb->priority, tcb->options, tcb->stkBase,
             tcb->stkSize, tcb->taskEntry, tcb->param);
     if (OK == rc) {
@@ -405,37 +403,45 @@ STATUS taskPrioritySet(tid_t tid, int newPriority)
     int level;
     TCB_ID tcb;
     SEM_ID semId;
-    PriInfo_t *pri;
+    int priOri;
 
+    if (newPriority < 1 || newPriority >= CONFIG_NUM_PRIORITY) {
+        return ERROR;
+    }
     tcb = (TCB_ID)tid;
     if (newPriority == tcb->priority) {
         return OK;
     }
-    level = intLock();
+    // return OK;
 
+    level = intLock();
+    priOri = tcb->priority;
     if (TASK_READY == tcb->status) {
-        list_del(&tcb->qNodeSched);
         taskReadyRemove(tcb);
         tcb->priority = newPriority;
-        pri = osInfo->priInfoTbl + tcb->priority;
         if (tcb == currentTask()) {
-            list_add(&tcb->qNodeSched, &pri->qReadyHead);
+            if (priOri > newPriority) {
+                taskReadyAdd(tcb, false);
+                intUnlock(level);
+                return OK;
+            }
+            taskReadyAdd(tcb, true);
         } else {
-            list_add(&tcb->qNodeSched, &pri->qReadyHead);
+            taskReadyAdd(tcb, true);
         }
-        taskReadyAdd(tcb);
         intUnlock(level);
-        coreTrySchedule();
+        if (priOri > newPriority) {
+            coreTrySchedule();
+        }
         return OK;
     }
     tcb->priority = newPriority;
     if (TASK_PEND & tcb->status) {
         semId = tcb->semIdPended;
-        list_del(&tcb->qNodePend);
+        list_del_init(&tcb->qNodePend);
         taskPendQuePut(tcb, semId);
     }
     intUnlock(level);
-    coreTrySchedule();
     return OK;
 }
 
@@ -489,33 +495,18 @@ STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
 STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
 {
     TCB_ID tcb1;
-    PriInfo_t *pri;
-    LUOS_INFO *osInfo = osCoreInfo();
 
     /* SEM_Q_PRIORITY */
     if (list_empty(&semId->qPendHead)) {
         return ERROR;
     } else {
         tcb1 = list_first_entry(&semId->qPendHead, LUOS_TCB, qNodePend);
-        list_del(&tcb1->qNodePend);
-        tcb1->semIdPended = NULL;
-        list_del(&tcb1->qNodeSched); /* delete from delay queue or pend queue */
+        list_del_init(&tcb1->qNodePend);
         tcb1->status &= ~(TASK_PEND | TASK_DELAY);
-        pri = osInfo->priInfoTbl + tcb1->priority;
-        if (SCHED_RR == pri->schedPolicy) {
-            tcb1->sliceTicksCnt = 0;
-        }
-        list_add(&tcb1->qNodeSched, &pri->qReadyHead);
-        taskReadyAdd(tcb1);
-        if (tcb1->priority < tcb->priority) {
-            switch (semId->semType) {
-                case SEM_TYPE_MUTEX :
-                case SEM_TYPE_BINARY:
-                    semId->semOwner = tcb1;
-                    break;
-                default:
-                    break;
-            }
+        if (TASK_READY == tcb1->status) {
+            tcb1->semIdPended = NULL;
+            list_del_init(&tcb1->qNodeSched);
+            taskReadyAdd(tcb1, false);
             return OK;
         }
     }

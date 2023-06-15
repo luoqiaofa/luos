@@ -62,14 +62,18 @@ SEM_ID semMCreate(int options)
 
 STATUS semMGive(SEM_ID semId)
 {
+    BOOL need_sch;
     int level;
     TCB_ID tcb;
+    int    oriPri;
 
     if (NULL == semId || semId->semType != SEM_TYPE_MUTEX) {
         return ERROR;
     }
 
-    level = intLock();
+    // level = intLock();
+    need_sch = false;
+    taskLock();
     tcb = currentTask();
     if (tcb == semId->semOwner) {
         if (semId->recurse > 0) {
@@ -77,16 +81,19 @@ STATUS semMGive(SEM_ID semId)
         }
         if (0 == semId->recurse) {
             semId->semOwner = NULL;
-            if (semId->oriPriority != tcb->priority) {
-                intUnlock(level);
-                return taskPrioritySet((tid_t)tcb, semId->oriPriority);
-            }
             if (OK == taskPendQueGet(tcb, semId)) {
-                coreTrySchedule();
+                need_sch = true;
+            }
+            if (semId->oriPriority != tcb->priority) {
+                need_sch = true;
+                taskPrioritySet((tid_t)tcb, semId->oriPriority);
             }
         }
-        intUnlock(level);
-        return OK;
+        // intUnlock(level);
+    }
+    taskUnlock();
+    if (need_sch) {
+        coreTrySchedule();
     }
     return OK;
 }
@@ -104,30 +111,34 @@ STATUS semMTake(SEM_ID semId, int timeout)
         return ERROR;
     }
 again:
-    level = intLock();
+    // level = intLock();
+    taskLock();
     tcb = currentTask();
     if (NULL == semId->semOwner) {
         semId->oriPriority = tcb->priority;
         semId->semOwner = tcb;
         semId->recurse = 1;
-        intUnlock(level);
+        // intUnlock(level);
+        taskUnlock();
         return OK;
     } else if (tcb == semId->semOwner) {
         if (semId->recurse < SEM_METUX_RECURSE_MAX) {
             semId->recurse++;
-            intUnlock(level);
+            // intUnlock(level);
+            taskUnlock();
             return OK;
         } else {
-            intUnlock(level);
+            // intUnlock(level);
+            taskUnlock();
             return ERROR;
         }
     }
     if (NO_WAIT == timeout) {
-        intUnlock(level);
+        // intUnlock(level);
+        taskUnlock();
         return ERROR;
     }
     /* pri = osInfo->priInfoTbl + tcb->priority; */
-    list_del(&tcb->qNodeSched);
     taskReadyRemove(tcb);
     tcb->errCode = 0;
     tcb->status |= TASK_PEND;
@@ -141,12 +152,14 @@ again:
     taskPendQuePut(tcb, semId);
     if (semId->semOwner->priority > tcb->priority) {
         newpri = tcb->priority;
-        intUnlock(level);
+        // intUnlock(level);
         rc = taskPrioritySet((tid_t)(semId->semOwner), newpri);
     } else {
-        intUnlock(level);
-        coreTrySchedule();
+        // intUnlock(level);
+        // coreTrySchedule();
     }
+    taskUnlock();
+    coreTrySchedule();
     rc = tcb->errCode;
     if (OK == rc) {
         goto again;
