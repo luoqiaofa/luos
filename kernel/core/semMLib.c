@@ -63,9 +63,8 @@ SEM_ID semMCreate(int options)
 STATUS semMGive(SEM_ID semId)
 {
     BOOL need_sch;
-    int level;
+    // int level;
     TCB_ID tcb;
-    int    oriPri;
 
     if (NULL == semId || semId->semType != SEM_TYPE_MUTEX) {
         return ERROR;
@@ -101,7 +100,7 @@ STATUS semMGive(SEM_ID semId)
 STATUS semMTake(SEM_ID semId, int timeout)
 {
     int rc;
-    int level;
+    // int level;
     int newpri;
     /* PriInfo_t *pri; */
     TCB_ID tcb;

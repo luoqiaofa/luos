@@ -90,19 +90,18 @@ STATUS osMemFree(void *ptr)
 #define NUM_TICK_JOBS 256
 typedef STATUS (*tickAnnounce_t)(void);
 static tickAnnounce_t coreTickJobsTbl[NUM_TICK_JOBS];
+volatile int16_t numTickQWork = 0;
 volatile uint8_t tickQworkWrIdx = 0;
 volatile uint8_t tickQWorkRdIdx = 0;
-volatile int16_t numTocksQWork = 0;
 
 #define tickQWorkEmpey() (tickQworkWrIdx == tickQWorkRdIdx)
 void tickAnnounce(void)
 {
-    TCB_ID tcb = currentTask();
     if (!taskLocked()) {
         tickQWorkDoing();
         coreTickDoing();
     } else {
-        numTocksQWork++;
+        numTickQWork++;
         coreTickJobsTbl[tickQworkWrIdx++] = coreTickDoing;
     }
 }
@@ -116,9 +115,9 @@ STATUS tickQWorkDoing(void)
         pfunc = coreTickJobsTbl[tickQWorkRdIdx++];
         pfunc();
         num++;
-        numTocksQWork--;
+        numTickQWork--;
     }
-    /* maybe need ched 0 == numTocksQWork or not for overflow */
+    /* maybe need ched 0 == numTickQWork or not for overflow */
     return num;
 }
 
@@ -274,7 +273,7 @@ STATUS i(void)
     PriInfo_t *pri;
     cpudata_t grp, off;
     LUOS_INFO *osInfo = osCoreInfo();
-    uint32_t ntick;
+    // uint32_t ntick;
     uint32_t idx, num;
     char tname[11];
 
@@ -336,7 +335,7 @@ STATUS i(void)
         ptcbs[idx] = tcb;
         idx++;
     }
-    ntick = numTocksQWork ;
+    // ntick = numTickQWork;
     taskUnlock();
     // intUnlock(level);
     tname[10] = '\0';

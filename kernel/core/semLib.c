@@ -115,7 +115,6 @@ STATUS semFlush(SEM_ID id)
     int level;
     TLIST *node, *n2;
     TCB_ID tcb;
-    PriInfo_t *pri;
 
     if (NULL == id || id->semType >= SEM_TYPE_MAX) {
         return ERROR;

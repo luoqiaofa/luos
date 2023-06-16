@@ -404,7 +404,6 @@ STATUS taskPrioritySet(tid_t tid, int newPriority)
     TCB_ID tcb;
     TCB_ID htcb;
     SEM_ID semId;
-    int priOri;
 
     if (newPriority < 1 || newPriority >= CONFIG_NUM_PRIORITY) {
         return ERROR;
@@ -416,7 +415,6 @@ STATUS taskPrioritySet(tid_t tid, int newPriority)
     // return OK;
 
     level = intLock();
-    priOri = tcb->priority;
     if (TASK_READY == tcb->status) {
         taskReadyRemove(tcb);
         tcb->priority = newPriority;
