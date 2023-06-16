@@ -70,12 +70,12 @@ STATUS semCGive(SEM_ID semId)
     }
 
     level = intLock();
+    tcb = currentTask();
+    semId->semCount++;
     if (list_empty(&semId->qPendHead)) {
         intUnlock(level);
         return OK;
     }
-    tcb = currentTask();
-    semId->semCount++;
     if (OK == taskPendQueGet(tcb, semId)) {
         intUnlock(level);
         coreTrySchedule();
@@ -136,7 +136,7 @@ STATUS semCFlush(SEM_ID id)
     int level;
     TLIST *node, *n2;
     TCB_ID tcb;
-    PriInfo_t *pri;
+
     if (NULL == id || SEM_TYPE_COUNT != id->semType) {
         return ERROR;
     }
