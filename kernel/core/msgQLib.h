@@ -1,0 +1,46 @@
+/*
+ * ===========================================================================
+ * 版权所有 (C)2010, MrLuo股份有限公司
+ * 文件名称   : msgQLib.h
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
+ * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
+ * 创建时间   : 2023-06-16 09:24:44 AM
+ *
+ * 修改记录1:
+ *    修改日期: 2023-06-16
+ *    版 本 号:
+ *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
+ *    修改内容:
+ * ===========================================================================
+ */
+
+#ifndef __MSGQLIB_H__
+#define __MSGQLIB_H__
+#include "coreLib.h"
+
+typedef struct msgQNode {
+    TLIST   qNode;
+    int     length;
+} msgQNode_t;
+
+typedef struct msgQ {
+    int         numMsgs;
+    int         maxMsgLen;   /* max data length for per msg */
+    void *      memBase;
+    TLIST       qFree;       /* free msgQNode */
+    TLIST       msgQ;        /* msgQNode */
+    SEMAPHORE   semMsgTx;      /* blocked task queue head */
+    SEMAPHORE   semMsgRx;      /* blocked task queue head */
+} msgQ_t;
+
+typedef msgQ_t * MSG_Q_ID;
+
+STATUS msgQLibInit(void);
+MSG_Q_ID msgQCreate(int numMsg, int maxMsgDataLen, int options);
+int msgQReceive(MSG_Q_ID msgQId, char *buf, UINT maxNBytes, int timeout);
+STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priority);
+
+#endif /* #ifndef __MSGQLIB_H__ */
+

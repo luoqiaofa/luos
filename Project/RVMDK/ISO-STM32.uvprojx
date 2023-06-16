@@ -875,6 +875,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\kernel\core\timerLib.c</FilePath>
             </File>
+            <File>
+              <FileName>msgQLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\kernel\core\msgQLib.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>

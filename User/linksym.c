@@ -5,10 +5,13 @@ extern int console_buffer[];
 extern int semMuxprint[];
 extern int cpuStatusCnt[];
 extern int dbg_print[];
+extern int msg_loop_cnt[];
+extern int nsec_freq[];
 extern int numTocksQWork[];
 extern int tickQWorkRdIdx[];
 extern int tickQworkWrIdx[];
 extern int tmr_keep[];
+extern int tmr_nsec_dly[];
 extern void * BSP_CPU_ClkFreq(void);
 extern void * cli_readline(void);
 extern void * cli_readline_into_buffer(void);
@@ -41,6 +44,10 @@ extern void * memPartAlloc(void);
 extern void * memPartFree(void);
 extern void * memPartInit(void);
 extern void * memPartLibInit(void);
+extern void * msgQCreate(void);
+extern void * msgQInit(void);
+extern void * msgQReceive(void);
+extern void * msgQSend(void);
 extern void * NVIC_Init(void);
 extern void * osMemAlloc(void);
 extern void * osMemFree(void);
@@ -71,6 +78,7 @@ extern void * semMTake(void);
 extern void * semQInit(void);
 extern void * semTake(void);
 extern void * semTypeInit(void);
+extern void * sprintf(void);
 extern void * strStrip(void);
 extern void * strToInt(void);
 extern void * sysClkRateGet(void);
@@ -171,6 +179,12 @@ static const TsymPara g_symTbl[] =
     {"memPartFree"                   , SYM_TYPE_T, memPartFree},
     {"memPartInit"                   , SYM_TYPE_T, memPartInit},
     {"memPartLibInit"                , SYM_TYPE_T, memPartLibInit},
+    {"msgQCreate"                    , SYM_TYPE_T, msgQCreate},
+    {"msgQInit"                      , SYM_TYPE_T, msgQInit},
+    {"msgQReceive"                   , SYM_TYPE_T, msgQReceive},
+    {"msgQSend"                      , SYM_TYPE_T, msgQSend},
+    {"msg_loop_cnt"                  , SYM_TYPE_D, msg_loop_cnt},
+    {"nsec_freq"                     , SYM_TYPE_D, nsec_freq},
     {"numTocksQWork"                 , SYM_TYPE_D, numTocksQWork},
     {"osMemAlloc"                    , SYM_TYPE_T, osMemAlloc},
     {"osMemFree"                     , SYM_TYPE_T, osMemFree},
@@ -199,11 +213,12 @@ static const TsymPara g_symTbl[] =
     {"semQInit"                      , SYM_TYPE_T, semQInit},
     {"semTake"                       , SYM_TYPE_T, semTake},
     {"semTypeInit"                   , SYM_TYPE_T, semTypeInit},
+    {"sprintf"                       , SYM_TYPE_T, sprintf},
     {"strStrip"                      , SYM_TYPE_T, strStrip},
     {"strToInt"                      , SYM_TYPE_T, strToInt},
     {"sysClkRateGet"                 , SYM_TYPE_T, sysClkRateGet},
     {"sysClkRateSet"                 , SYM_TYPE_T, sysClkRateSet},
-    {"sysClkTickGet"                , SYM_TYPE_T, sysClkTickGet},
+    {"sysClkTickGet"                 , SYM_TYPE_T, sysClkTickGet},
     {"taskActivate"                  , SYM_TYPE_T, taskActivate},
     {"taskCreate"                    , SYM_TYPE_T, taskCreate},
     {"taskDelay"                     , SYM_TYPE_T, taskDelay},
@@ -232,6 +247,7 @@ static const TsymPara g_symTbl[] =
     {"timerModify"                   , SYM_TYPE_T, timerModify},
     {"timer_add_test"                , SYM_TYPE_T, timer_add_test},
     {"tmr_keep"                      , SYM_TYPE_D, tmr_keep},
+    {"tmr_nsec_dly"                  , SYM_TYPE_D, tmr_nsec_dly},
     {"tolower"                       , SYM_TYPE_T, tolower},
     {"tstc"                          , SYM_TYPE_T, tstc},
     {"version"                       , SYM_TYPE_T, version},

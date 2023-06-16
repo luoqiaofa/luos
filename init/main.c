@@ -57,7 +57,7 @@ static void *taskOneshort(void *arg)
 {
     int nsec = (int)arg;
 
-    nsec <= 0 ? 1 : nsec;
+    nsec = (nsec <= 0 ? 1 : nsec);
     // Printf("[%s] enter!\n", taskName(taskIdSelf()));
     taskDelay(nsec * sysClkRateGet());
     // Printf("[%s] exit!\n", taskName(taskIdSelf()));
@@ -66,18 +66,21 @@ static void *taskOneshort(void *arg)
 
 LOCAL timerList_t timerL;
 int tmr_keep = 1;
+uint32_t tmr_nsec_dly = 1;
+
+static int tmr_loop = 0;
+
 LOCAL int timer_expire(void *arg)
 {
-    static int loop = 0;
     cputime_t expires;
 
     if (tmr_keep & 0x02) {
-        printf("[%s]Enter..., loop=%d\n", __func__, loop++);
+        printf("[%s]Enter..., loop=%d\n", __func__, tmr_loop++);
     }
 
     if (tmr_keep) {
         expires = sysClkTickGet();
-        expires += sysClkRateGet();
+        expires += tmr_nsec_dly * sysClkRateGet();
         timerModify((timerid_t)&timerL, expires);
     }
     return 0;
@@ -90,7 +93,46 @@ int timer_add_test(void)
     expires += sysClkRateGet();
     timerInit((timerid_t)&timerL, expires, timer_expire, NULL);
     timerAdd((timerid_t)&timerL);
+    tmr_loop = 0;
     return 0;
+}
+
+LOCAL MSG_Q_ID msgQId = NULL;
+static void *taskMsgRx(void *arg)
+{
+    int rc;
+    char buf[101];
+    UINT maxNBytes = 100;
+
+    while (1) {
+        rc = msgQReceive(msgQId, buf, maxNBytes, WAIT_FOREVER);
+        if (rc > 0) {
+            buf[rc] = '\0';
+            Printf("[msgQReceive]len=%d, msg: %s\n", rc, buf);
+        }
+    }
+    return NULL;
+}
+
+int nsec_freq = 2;
+int msg_loop_cnt = 0;
+static void *taskMsgTx(void *arg)
+{
+    int rc;
+    char buf[101];
+    UINT nBytes;
+
+    while (1) {
+        msg_loop_cnt++;
+        nBytes = sprintf(buf, "message id=%d", msg_loop_cnt);
+        buf[nBytes] = '\0';
+        rc = msgQSend(msgQId, buf, nBytes, WAIT_FOREVER, 0);
+        if (OK != rc) {
+            Printf("rc=%d\n", rc);
+        }
+        taskDelay(nsec_freq * sysClkRateGet());
+    }
+    return NULL;
 }
 
 extern void LED_Init ( void );
@@ -109,10 +151,12 @@ static void *taskRtn1(void *arg)
 
     taskSpawn("t2",     10, 0, 4096, taskRtn2, semId);
     taskSpawn("tStat", CONFIG_NUM_PRIORITY-4, 0, 512,  taskStatus, NULL);
+    taskSpawn("tMsgTx", 12, 0, 2048,  taskMsgTx, NULL);
+    taskSpawn("tMsgRx", 11, 0, 2048,  taskMsgRx, NULL);
 #if 1
     for (cnt = 0; cnt < 9; cnt++) {
         tname[4] = '1' + cnt;
-        tid = taskSpawn(tname,  CONFIG_NUM_PRIORITY-3, 0, 512,  taskOneshort, (void *)(1));
+        tid = taskSpawn(tname,  CONFIG_NUM_PRIORITY-3, 0, 512,  taskOneshort, (void *)(13 - cnt));
         tcb = (TCB_ID)tid;
         semIds[cnt] = &(tcb->semJoinExit);
         if (tid == (tid_t)0) {
@@ -177,7 +221,6 @@ static void *taskRtn2(void *arg)
 int main (int argc, char *argv[])
 {
     int rc;
-    tid_t tid;
 
     USARTx_Config();
 	version();
@@ -195,6 +238,8 @@ int main (int argc, char *argv[])
     if (NULL == semId) {
         return -1;
     }
+
+    msgQId = msgQCreate(10, 128, 0);
 
     if (OK != rc) {
         printf("taskLibInit failed\n");

@@ -25,7 +25,7 @@
 #include "timerLib.h"
 #include "taskLib.h"
 #include "taskLibP.h"
-
+#include "msgQLib.h"
 
 #ifndef CONFIG_NUM_PRIORITY
 #define CONFIG_NUM_PRIORITY 64 /* 64/256/1024/4096 */
@@ -172,6 +172,7 @@ static inline void tcbActivate(TCB_ID tcb)
     }
 }
 
+int cpuCntLeadZeros(cpudata_t val);
 static inline TCB_ID highReadyTaskGet(void)
 {
     int grp;
