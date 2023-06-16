@@ -31,6 +31,7 @@ typedef struct msgQ {
     void *      memBase;
     TLIST       qFree;       /* free msgQNode */
     TLIST       msgQ;        /* msgQNode */
+    int         numFree;
     SEMAPHORE   semMsgTx;      /* blocked task queue head */
     SEMAPHORE   semMsgRx;      /* blocked task queue head */
 } msgQ_t;
@@ -41,6 +42,7 @@ STATUS msgQLibInit(void);
 MSG_Q_ID msgQCreate(int numMsg, int maxMsgDataLen, int options);
 int msgQReceive(MSG_Q_ID msgQId, char *buf, UINT maxNBytes, int timeout);
 STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priority);
+STATUS msgQDelete(MSG_Q_ID msgQId);
 
 #endif /* #ifndef __MSGQLIB_H__ */
 

@@ -45,7 +45,6 @@ extern void * memPartFree(void);
 extern void * memPartInit(void);
 extern void * memPartLibInit(void);
 extern void * msgQCreate(void);
-extern void * msgQInit(void);
 extern void * msgQReceive(void);
 extern void * msgQSend(void);
 extern void * NVIC_Init(void);
@@ -180,7 +179,6 @@ static const TsymPara g_symTbl[] =
     {"memPartInit"                   , SYM_TYPE_T, memPartInit},
     {"memPartLibInit"                , SYM_TYPE_T, memPartLibInit},
     {"msgQCreate"                    , SYM_TYPE_T, msgQCreate},
-    {"msgQInit"                      , SYM_TYPE_T, msgQInit},
     {"msgQReceive"                   , SYM_TYPE_T, msgQReceive},
     {"msgQSend"                      , SYM_TYPE_T, msgQSend},
     {"msg_loop_cnt"                  , SYM_TYPE_D, msg_loop_cnt},

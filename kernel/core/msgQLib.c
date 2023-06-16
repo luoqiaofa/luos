@@ -26,7 +26,7 @@ STATUS msgQLibInit(void)
     return OK;
 }
 
-STATUS msgQInit(MSG_Q_ID msgid, int numMsg, int maxDataLen, int options)
+static STATUS msgQInit(MSG_Q_ID msgid, int numMsg, int maxDataLen, int options)
 {
     msgQNode_t *msg;
     int idx;
@@ -54,6 +54,7 @@ STATUS msgQInit(MSG_Q_ID msgid, int numMsg, int maxDataLen, int options)
     }
 
     msgid->numMsgs   = numMsg;
+    msgid->numFree   = numMsg;
     msgid->maxMsgLen = one - sizeof(*msg);
     semCInit(&msgid->semMsgRx, options, 0);
     semCInit(&msgid->semMsgTx, options, numMsg);
@@ -97,6 +98,7 @@ STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priori
     }
     msg = list_first_entry(&msgQId->qFree, msgQNode_t, qNode);
     while (NULL == msg) {;}
+    msgQId->numFree--;
     list_del_init(&msg->qNode);
     p = (char *)msg;
     p += sizeof(*msg);
@@ -143,10 +145,25 @@ int msgQReceive(MSG_Q_ID msgQId, char *buf, UINT maxNBytes, int timeout)
     }
     memcpy(buf, p, maxNBytes);
 
+    msgQId->numFree++;
     list_add_tail(&msg->qNode, &msgQId->qFree);
 
     rc = semGive(&msgQId->semMsgTx);
 
     return maxNBytes;
+}
+
+STATUS msgQDelete(MSG_Q_ID msgQId)
+{
+    while (msgQId->numFree != msgQId->numMsgs) {
+        taskDelay(2);
+    }
+    taskLock();
+    osMemFree(msgQId->memBase);
+    msgQId->memBase = NULL;
+    memset(msgQId, 0, sizeof(*msgQId));
+    osMemFree(msgQId);
+    taskUnlock();
+    return OK;
 }
 
