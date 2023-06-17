@@ -133,7 +133,7 @@ void timerListDing(void)
     timerList_t *tmr, *tdel;
     LUOS_INFO *osInfo = osCoreInfo();
 
-    if (0 == osInfo->sysTicksCnt) return ;
+    /* if (0 == osInfo->sysTicksCnt) return ; */
     if (0 == qTimerWait.numItem) return ;
     tdel = NULL;
     list_for_each(node, &qTimerWait.list) {
@@ -143,10 +143,12 @@ void timerListDing(void)
             tdel = NULL;
         }
         tmr = list_entry(node, timerList_t, entry);
+#if 0
         if (0 == tmr->expires) {
             continue;
         }
-        if (osInfo->sysTicksCnt >= tmr->expires) {
+#endif
+        if (osInfo->sysTicksCnt == tmr->expires) {
             tdel = tmr;
         }
     }

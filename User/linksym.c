@@ -7,7 +7,6 @@ extern int cpuStatusCnt[];
 extern int dbg_print[];
 extern int msg_loop_cnt[];
 extern int nsec_freq[];
-extern int numTocksQWork[];
 extern int tickQWorkRdIdx[];
 extern int tickQworkWrIdx[];
 extern int tmr_keep[];
@@ -183,7 +182,6 @@ static const TsymPara g_symTbl[] =
     {"msgQSend"                      , SYM_TYPE_T, msgQSend},
     {"msg_loop_cnt"                  , SYM_TYPE_D, msg_loop_cnt},
     {"nsec_freq"                     , SYM_TYPE_D, nsec_freq},
-    {"numTocksQWork"                 , SYM_TYPE_D, numTocksQWork},
     {"osMemAlloc"                    , SYM_TYPE_T, osMemAlloc},
     {"osMemFree"                     , SYM_TYPE_T, osMemFree},
     {"putc"                          , SYM_TYPE_T, putc},
