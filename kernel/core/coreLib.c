@@ -266,7 +266,6 @@ STATUS i(void)
 {
     // int level;
     TCB_ID tcb;
-    TCB_ID tcbs;
     TCB_ID *ptcbs;
     TLIST *node;
     int priority;
@@ -299,13 +298,12 @@ STATUS i(void)
     list_for_each(node, &osInfo->qPendHead) {
         num++;
     }
-    tcbs = osMemAlloc(num * sizeof(*tcb) + num * sizeof(tcb));
-    if (NULL == tcbs) {
+    ptcbs = osMemAlloc(num * sizeof(tcb));
+    if (NULL == ptcbs) {
         taskUnlock();
         log("[%s] osMemAlloc failed", __func__);
         return 0;
     }
-    ptcbs = (TCB_ID *)(tcbs + num);
     idx = 0;
     for(grp = 0; grp < NLONG_PRIORITY; grp++) {
         if (0 != osInfo->readyPriTbl[grp]) {
@@ -315,7 +313,6 @@ STATUS i(void)
                     pri = osInfo->priInfoTbl + priority;
                     list_for_each(node, &pri->qReadyHead) {
                         tcb = list_entry(node, LUOS_TCB, qNodeSched);
-                        memcpy(tcbs + idx, tcb, sizeof(*tcb));
                         ptcbs[idx] = tcb;
                         idx++;
                     }
@@ -325,13 +322,11 @@ STATUS i(void)
     }
     list_for_each(node, &osInfo->qDelayHead) {
         tcb = list_entry(node, LUOS_TCB, qNodeSched);
-        memcpy(tcbs + idx, tcb, sizeof(*tcb));
         ptcbs[idx] = tcb;
         idx++;
     }
     list_for_each(node, &osInfo->qPendHead) {
         tcb = list_entry(node, LUOS_TCB, qNodeSched);
-        memcpy(tcbs + idx, tcb, sizeof(*tcb));
         ptcbs[idx] = tcb;
         idx++;
     }
@@ -342,11 +337,11 @@ STATUS i(void)
     log("###############################################################################");
     log("Name         TID      Pri   Status stkBase     Stack  stkSize schedCnt runTicks");
     for (idx = 0; idx < num; idx++) {
-        tcb = tcbs + idx;
-        strncpy(tname, ptcbs[idx]->name, 10);
+        tcb = ptcbs[idx];
+        strncpy(tname, tcb->name, 10);
         log("%-10s %10u %-4d %7s %p %p %8d %8d %8d", \
                 tname, \
-                (UINT)ptcbs[idx],               \
+                (UINT)tcb,               \
                 tcb->priority, \
                 taskStatusStr(tcb), \
                 tcb->stkBase, \
@@ -356,7 +351,7 @@ STATUS i(void)
                 tcb->runTicksCnt);
     }
     log("###############################################################################");
-    osMemFree(tcbs);
+    osMemFree(ptcbs);
     // log("ntick=%u", ntick);
     return 0;
 }
