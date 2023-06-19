@@ -553,3 +553,24 @@ const char *taskStatusStr(TCB_ID tcb)
     return "Unkown";
 }
 
+STATUS taskStatusString(tid_t tid, char *str)
+{
+    char *strs;
+    TCB_ID tcb = (TCB_ID)tid;
+
+    if (NULL == str) {
+        return ERROR;
+    }
+    if (0 == tid) {
+        tcb = (TCB_ID)taskIdSelf();
+    }
+    strs = taskStatusStr(tcb);
+    if (NULL == str) {
+        return ERROR;
+    }
+    strcpy(str, strs);
+    return OK;
+}
+
+
+
