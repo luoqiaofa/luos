@@ -3,10 +3,13 @@
 #include "coreLib.h"
 
 #define CONSOLE_BUF_DBG 0
+// #define USE_RX_SEM
 // static FILE __stdin;
 // static FILE __stdout;
 // static FILE __stderr;
-
+#ifdef USE_RX_SEM 
+static SEMAPHORE semConsole;
+#endif
 /*
  * ===========================================================================
  * 函数名称: USARTx_Config
@@ -62,6 +65,10 @@ void USARTx_Config(void)
     USART_ITConfig(macUSARTx, USART_IT_RXNE, ENABLE);
 
     USART_Cmd(macUSARTx, ENABLE);
+
+#ifdef USE_RX_SEM 
+    semCInit(&semConsole, 0, 0);
+#endif
 }
 
 #define NUM_RX_BUF  1024
@@ -86,6 +93,9 @@ void UART_Receive(void)
         uart_rx_cnt++;
         /* Clear the macUSARTx Receive interrupt */
         USART_ClearITPendingBit(macUSARTx, USART_IT_RXNE);
+#ifdef USE_RX_SEM 
+        semGive(&semConsole);
+#endif
     }
 }
 
@@ -103,11 +113,12 @@ void UART_Receive(void)
  * 2019/10/11  V1.0    罗乔发         创建
  * ===========================================================================
  */
+#ifndef USE_RX_SEM
 void USART1_IRQHandler(void)                	//串口1中断服务程序
 {
     UART_Receive();
 }
-
+#endif
 
 /// 重定向c库函数printf到macUSARTx
 int fputc(int ch, FILE *f)
@@ -147,12 +158,14 @@ int puts(const char *s)
 int fgetc(FILE *f)
 {
     int ch = -1;
-    int level;
 
-    // semTake(consoleSemId, WAIT_FOREVER);
+#ifdef USE_RX_SEM
+    semTake(&semConsole, WAIT_FOREVER);
+#else
     while (rxbuf_empty()) {
         taskDelay(2);
     }
+#endif
 
     ch = uart_rx_buf[buf_rd_offset];
     if (buf_rd_offset < (NUM_RX_BUF - 1)) {
