@@ -72,29 +72,33 @@ cpuIntUnlock PROC
     BX  LR
     ENDP
 
-; USART1_IRQHandler PROC
-;     EXPORT USART1_IRQHandler
-;     IMPORT  __osinfo__
-;     IMPORT  coreIntEnter
-;     IMPORT  coreIntExit
-;     IMPORT  UART_Receive
-;     CPSID  I
-;     PUSH    {R4-R11,LR}
-;     LDR     R0, =coreIntEnter
-;     BLX     R0
-;     LDR     R2, =UART_Receive
-;     BLX     R2
-;     LDR     R0, =coreIntExit
-;     BLX     R0
-;     LDR     R2, =__osinfo__
-;     LDR     R0, [R2]
-;     LDR     R1, [R2, #0x04]
-;     POP     {R4-R11,LR}
-;     CMP     R0, R1
-;     BNE     OS_CPU_PendSVHandler
-;     CPSIE   I
-;     BX      LR
-;     ENDP
+;    GBLA USE_RX_SEM 
+;USE_RX_SEM  SETA 0
+    IF :DEF: USE_RX_SEM
+USART1_IRQHandler PROC
+    EXPORT USART1_IRQHandler
+    IMPORT  __osinfo__
+    IMPORT  coreIntEnter
+    IMPORT  coreIntExit
+    IMPORT  UART_Receive
+    CPSID  I
+    PUSH    {R4-R11,LR}
+    LDR     R0, =coreIntEnter
+    BLX     R0
+    LDR     R2, =UART_Receive
+    BLX     R2
+    LDR     R0, =coreIntExit
+    BLX     R0
+    LDR     R2, =__osinfo__
+    LDR     R0, [R2]
+    LDR     R1, [R2, #0x04]
+    POP     {R4-R11,LR}
+    CMP     R0, R1
+    BNE     OS_CPU_PendSVHandler
+    CPSIE   I
+    BX      LR
+    ENDP
+    ENDIF
 
 cpuRunningTaskStkGet PROC
     EXPORT cpuRunningTaskStkGet
