@@ -135,6 +135,34 @@ static void *taskMsgTx(void *arg)
     return NULL;
 }
 
+static SEMAPHORE semFlags;
+static void *taskFlagsGive(void *arg)
+{
+    UINT idx = 0;
+    UINT flags = ~0;
+    while (true) {
+        taskDelay(sysClkRateGet());
+        flagGive(&semFlags, flags, FLAG_OPT_SET_ALL);
+        idx++;
+        if (0 == idx % (8 * sizeof(flags))) {
+            flags = ~0;
+        }
+    }
+    return NULL;
+}
+
+static void *taskFlagsTake(void *arg)
+{
+    UINT idx = 0;
+    UINT flags = ~0;
+    while (true) {
+        flags = 1 << idx;
+        flagTake(&semFlags, flags, FLAG_OPT_SET_ALL | FLAG_OPT_CONSUME, WAIT_FOREVER);
+        idx = (idx + 1) % (8 * sizeof(flags));
+    }
+    return NULL;
+}
+
 extern void LED_Init ( void );
 extern void ledToggle(void);
 int dbg_print = 0;
@@ -148,11 +176,16 @@ static void *taskRtn1(void *arg)
     timer_add_test();
 
     sysClkRateSet(CONFIG_HZ);
+    
+    flagInit(&semFlags, 0, 0);
 
     taskSpawn("t2",     10, 0, 4096, taskRtn2, semId);
     taskSpawn("tStat", CONFIG_NUM_PRIORITY-4, 0, 512,  taskStatus, NULL);
     taskSpawn("tMsgTx", 12, 0, 2048,  taskMsgTx, NULL);
     taskSpawn("tMsgRx", 11, 0, 2048,  taskMsgRx, NULL);
+
+    taskSpawn("tFlgGive", 17, 0, 1024,  taskFlagsGive, NULL);
+    taskSpawn("tFlgTake", 18, 0, 1024,  taskFlagsTake, NULL);
 #if 1
     for (cnt = 0; cnt < 9; cnt++) {
         tname[4] = '1' + cnt;

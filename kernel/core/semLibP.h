@@ -41,8 +41,8 @@ typedef struct semaphore {
     TLIST    qPendHead;  /* blocked task queue head */
     union {
         struct luosTcb  *ownerTcb;   /* origin owner tcb */
-        int32_t  count;
-        cpureg_t flags;    /* events flags */
+        int32_t count;
+        UINT    flags;
     } obj;
 } SEMAPHORE;
 

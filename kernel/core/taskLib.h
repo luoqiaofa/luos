@@ -46,13 +46,13 @@ typedef struct luosTcb {
     int32_t   dlyTicks;
     int       options;
     TLIST     memListHdr;  /* mem list header */
-    TLIST     qNodeSched;    /* for ready, delay queue list */
-    TLIST     qNodePend;       /* for mutex,msgqueue,semphore,suspend cause to be pended. etc */
+    TLIST     qNodeSched;  /* for ready, delay queue list */
+    TLIST     qNodePend;   /* for mutex,msgqueue,semphore,suspend cause to be pended. etc */
     SEM_ID    semIdPended;
     SEM_ID    semIdOwner;
     SEMAPHORE semJoinExit;
-    int32_t   priNormal;
-    int32_t   priDynamic;
+    int       flgOptions;
+    UINT      flgsWaited;
     int32_t   sliceTicksCnt; /* count the ticks for slice */
     cputime_t firstSchedTs;  /* last scheduled os ticks cnt */
     int32_t   latestTick;    /* last scheduled os ticks cnt */

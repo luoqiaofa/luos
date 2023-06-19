@@ -21,6 +21,7 @@
  ******************************************************************************/
 #include <stdio.h>
 #include "coreLib.h"
+
 extern int Printf(const char *fmt, ...);
 
 LOCAL LUOS_INFO * osInfo = &__osinfo__;
@@ -502,19 +503,90 @@ STATUS taskPendQuePut(TCB_ID tcb, SEM_ID semId)
 
 STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
 {
-    TCB_ID tcb1;
+    TLIST  *node;
+    TCB_ID tcb1, tdel;
+    UINT newflags;
+    BOOL needSched = false;
+    UINT newstaus;
 
     /* SEM_Q_PRIORITY */
     if (list_empty(&semId->qPendHead)) {
         return ERROR;
     } else {
-        tcb1 = list_first_entry(&semId->qPendHead, LUOS_TCB, qNodePend);
-        list_del_init(&tcb1->qNodePend);
-        tcb1->status &= ~(TASK_PEND | TASK_DELAY);
-        if (TASK_READY == tcb1->status) {
-            tcb1->semIdPended = NULL;
+        tdel = NULL;
+        list_for_each(node, &semId->qPendHead) {
+            tcb1 = list_entry(node, LUOS_TCB, qNodePend);
+            newstaus = tcb1->status & ~(TASK_PEND | TASK_DELAY);
+            if (TASK_READY != newstaus) {
+                continue;
+            }
+            if (SEM_TYPE_FLAGS != semId->semType) {
+                list_del_init(&tcb1->qNodePend);
+                list_del_init(&tcb1->qNodeSched);
+                tcb1->semIdPended = NULL;
+                taskReadyAdd(tcb1, false);
+                tcb1->status = TASK_READY;
+                if (tcb1->priority < tcb->priority) {
+                    needSched = true;
+                    return OK;
+                }
+                return ERROR;
+            } else {
+                if (NULL != tdel) {
+                    list_del_init(&tcb1->qNodePend);
+                    list_del_init(&tdel->qNodeSched);
+                    tdel->semIdPended = NULL;
+                    taskReadyAdd(tdel, false);
+                    tdel->status = TASK_READY;
+                    if (tdel->priority < tcb->priority) {
+                        needSched = true;
+                    }
+                    tdel = NULL;
+                }
+                switch (tcb1->flgOptions & FLAG_OPT_SETCLR_MSK) {
+                    case FLAG_OPT_SET_ALL:
+                        newflags = semId->semEvents & tcb1->flgsWaited;
+                        if (newflags != tcb1->flgsWaited) {
+                            continue;
+                        }
+                        break;
+                    case FLAG_OPT_CLR_ALL:
+                        newflags = semId->semEvents & tcb1->flgsWaited;
+                        if (0 != newflags) {
+                            continue;
+                        }
+                        break;
+                    case FLAG_OPT_SET_ANY:
+                        newflags = semId->semEvents & tcb1->flgsWaited;
+                        if (0 == newflags) {
+                            continue;
+                        }
+                        break;
+                    case FLAG_OPT_CLR_ANY:
+                        newflags = semId->semEvents & tcb1->flgsWaited;
+                        if (newflags == tcb1->flgsWaited) {
+                            continue;
+                        }
+                        break;
+                    default:
+                        continue;
+                        break;
+                }
+                tdel = tcb1;
+            }
+        }
+        if (NULL != tdel) {
+            list_del_init(&tcb1->qNodePend);
             list_del_init(&tcb1->qNodeSched);
+            tcb1->semIdPended = NULL;
             taskReadyAdd(tcb1, false);
+            tdel->status = TASK_READY;
+            if (tdel->priority < tcb->priority) {
+                needSched = true;
+            }
+            tdel = NULL;
+        }
+        if(needSched) {
             return OK;
         }
     }
@@ -555,7 +627,7 @@ const char *taskStatusStr(TCB_ID tcb)
 
 STATUS taskStatusString(tid_t tid, char *str)
 {
-    char *strs;
+    const char *strs;
     TCB_ID tcb = (TCB_ID)tid;
 
     if (NULL == str) {

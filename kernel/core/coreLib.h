@@ -20,12 +20,12 @@
 #define __OSCORE_H__
 #include "osTypes.h"
 #include "semLib.h"
-#include "semLib.h"
 #include "memPartLib.h"
 #include "timerLib.h"
 #include "taskLib.h"
 #include "taskLibP.h"
 #include "msgQLib.h"
+#include "flagLib.h"
 
 #ifndef CONFIG_NUM_PRIORITY
 #define CONFIG_NUM_PRIORITY 64 /* 64/256/1024/4096 */
