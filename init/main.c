@@ -100,15 +100,18 @@ int timer_add_test(void)
 LOCAL MSG_Q_ID msgQId = NULL;
 static void *taskMsgRx(void *arg)
 {
+    UINT usage;
     int rc;
     char buf[101];
     UINT maxNBytes = 100;
 
     while (1) {
-        rc = msgQReceive(msgQId, buf, maxNBytes, WAIT_FOREVER);
+        rc = msgQReceive(msgQId, buf, maxNBytes, /* WAIT_FOREVER */sysClkRateGet());
         if (rc > 0) {
             buf[rc] = '\0';
             Printf("[msgQReceive]len=%d, msg: %s\n", rc, buf);
+            usage = cpuUsageGet();
+            Printf("CPU Usage: %u.%03u%%\n", usage/1000, usage%1000);
         }
     }
     return NULL;

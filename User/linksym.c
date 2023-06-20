@@ -5,8 +5,10 @@ extern int console_buffer[];
 extern int semMuxprint[];
 extern int cpuStatusCnt[];
 extern int dbg_print[];
+extern int interrupt_from_handler[];
 extern int msg_loop_cnt[];
 extern int nsec_freq[];
+extern int numTickQWork[];
 extern int tickQWorkRdIdx[];
 extern int tickQworkWrIdx[];
 extern int tmr_keep[];
@@ -27,12 +29,17 @@ extern void * cpuRunningTaskStkGet(void);
 extern void * cpuStackInit(void);
 extern void * cpuSysTicksConfig(void);
 extern void * cpuTaskContextSwitchTrig(void);
+extern void * cpuUsageGet(void);
+extern void * flagGive(void);
+extern void * flagInit(void);
+extern void * flagTake(void);
 extern void * getc(void);
 extern void * GPIO_Init(void);
 extern void * GPIO_ReadOutputDataBit(void);
 extern void * GPIO_ResetBits(void);
 extern void * GPIO_SetBits(void);
 extern void * i(void);
+extern void * intIsFromHandlerSet(void);
 extern void * intLock(void);
 extern void * intUnlock(void);
 extern void * isValidNumber(void);
@@ -101,6 +108,7 @@ extern void * taskSpawn(void);
 extern void * taskStatusStr(void);
 extern void * taskSuspend(void);
 extern void * taskUnlock(void);
+extern void * tick64Get(void);
 extern void * tickAnnounce(void);
 extern void * tickQWorkDoing(void);
 extern void * timerAdd(void);
@@ -165,11 +173,17 @@ static const TsymPara g_symTbl[] =
     {"cpuStatusCnt"                  , SYM_TYPE_D, cpuStatusCnt},
     {"cpuSysTicksConfig"             , SYM_TYPE_T, cpuSysTicksConfig},
     {"cpuTaskContextSwitchTrig"      , SYM_TYPE_T, cpuTaskContextSwitchTrig},
+    {"cpuUsageGet"                   , SYM_TYPE_T, cpuUsageGet},
     {"dbg_print"                     , SYM_TYPE_D, dbg_print},
+    {"flagGive"                      , SYM_TYPE_T, flagGive},
+    {"flagInit"                      , SYM_TYPE_T, flagInit},
+    {"flagTake"                      , SYM_TYPE_T, flagTake},
     {"getc"                          , SYM_TYPE_T, getc},
     {"i"                             , SYM_TYPE_T, i},
+    {"intIsFromHandlerSet"           , SYM_TYPE_T, intIsFromHandlerSet},
     {"intLock"                       , SYM_TYPE_T, intLock},
     {"intUnlock"                     , SYM_TYPE_T, intUnlock},
+    {"interrupt_from_handler"        , SYM_TYPE_D, interrupt_from_handler},
     {"isValidNumber"                 , SYM_TYPE_T, isValidNumber},
     {"ledToggle"                     , SYM_TYPE_T, ledToggle},
     {"luosStart"                     , SYM_TYPE_T, luosStart},
@@ -182,6 +196,7 @@ static const TsymPara g_symTbl[] =
     {"msgQSend"                      , SYM_TYPE_T, msgQSend},
     {"msg_loop_cnt"                  , SYM_TYPE_D, msg_loop_cnt},
     {"nsec_freq"                     , SYM_TYPE_D, nsec_freq},
+    {"numTickQWork"                  , SYM_TYPE_D, numTickQWork},
     {"osMemAlloc"                    , SYM_TYPE_T, osMemAlloc},
     {"osMemFree"                     , SYM_TYPE_T, osMemFree},
     {"putc"                          , SYM_TYPE_T, putc},
@@ -232,6 +247,7 @@ static const TsymPara g_symTbl[] =
     {"taskStatusStr"                 , SYM_TYPE_T, taskStatusStr},
     {"taskSuspend"                   , SYM_TYPE_T, taskSuspend},
     {"taskUnlock"                    , SYM_TYPE_T, taskUnlock},
+    {"tick64Get"                     , SYM_TYPE_T, tick64Get},
     {"tickAnnounce"                  , SYM_TYPE_T, tickAnnounce},
     {"tickQWorkDoing"                , SYM_TYPE_T, tickQWorkDoing},
     {"tickQWorkRdIdx"                , SYM_TYPE_D, tickQWorkRdIdx},

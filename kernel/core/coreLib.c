@@ -134,6 +134,7 @@ STATUS coreTickDoing(void)
 
     osInfo = &__osinfo__;
     osInfo->sysTicksCnt++;
+    osInfo->absTicksCnt++;
     timerListDing();
     tcb->runTicksCnt++;
     node_del = NULL;
@@ -154,7 +155,11 @@ STATUS coreTickDoing(void)
                     tcb->errCode = 0;
                 } else {
                     /* pend envent timeout */
-                    tcb->errCode = ERROR;
+                    tcb->status &= ~TASK_PEND;
+                    if (TASK_READY == tcb->status) {
+                        node_del = node;
+                        tcb->errCode = ERROR;
+                    }
                 }
             }
         }
@@ -188,7 +193,7 @@ STATUS coreTickDoing(void)
 }
 
 int interrupt_from_handler = 0;
-int intIsFromHandlerSet(int isHandler)
+void intIsFromHandlerSet(int isHandler)
 {
 #ifdef DBG
     if (isHandler) {
@@ -379,7 +384,7 @@ STATUS i(void)
     return 0;
 }
 
-static volatile UINT cpuIdleCnt = 0;
+static volatile UINT64 cpuIdleCnt = 0;
 static void *taskIdleEntry(void *arg) {
     while (true) {
         cpuIdleCnt++;
@@ -387,7 +392,7 @@ static void *taskIdleEntry(void *arg) {
     return NULL;
 }
 
-
+static TCB_ID idleTcb = NULL;
 STATUS luosStart(START_RTN appStart, void *appArg, int stackSize)
 {
     int level;
@@ -403,6 +408,7 @@ STATUS luosStart(START_RTN appStart, void *appArg, int stackSize)
     while (NULL == tcb_root) {;}
     tcb_idle = (TCB_ID)taskCreate("tIdle", CONFIG_NUM_PRIORITY - 1, 0, 512, taskIdleEntry, NULL);
     while (NULL == tcb_idle) {;}
+    idleTcb = tcb_idle;
     level = intLock();
     tcbActivate(tcb_idle);
     tcbActivate(tcb_root);
@@ -413,5 +419,28 @@ STATUS luosStart(START_RTN appStart, void *appArg, int stackSize)
     intUnlock(level);
     cpuTaskContextSwitchTrig(currentTask(), tcb);
     return 0;
+}
+
+UINT64 tick64Get(void)
+{
+    int level;
+    UINT64 ticks;
+
+    level = intLock();
+    ticks = __osinfo__.absTicksCnt;
+    intUnlock(level);
+    return ticks;
+}
+
+UINT cpuUsageGet(void)
+{
+    UINT rc;
+    UINT ticks;
+    UINT ticks_valid;
+
+    ticks = __osinfo__.sysTicksCnt;
+    ticks_valid = ticks - idleTcb->runTicksCnt;
+    rc = (ticks_valid * 100000)/ticks;
+    return rc;
 }
 

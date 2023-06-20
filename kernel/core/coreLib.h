@@ -84,8 +84,9 @@ typedef struct luosInfo {
     UINT      taskCreatedCnt;
     BOOL      running;
     BOOL      schedLocked;
-    cpudata_t intNestedCnt;
-    cpudata_t sysTicksCnt;
+    UINT      intNestedCnt;
+    UINT      sysTicksCnt;
+    UINT64    absTicksCnt;
     ULONG     contextCnt;
 } LUOS_INFO;
 
@@ -216,6 +217,7 @@ extern STATUS tickQWorkDoing(void);
 extern void tickAnnounce(void);
 extern STATUS luosStart(START_RTN appStart, void *appArg, int stackSize);
 int Printf(const char *fmt, ...);
+UINT cpuUsageGet(void);
 
 #endif /* #ifndef __OSCORE_H__ */
 
