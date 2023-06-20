@@ -75,7 +75,7 @@ LOCAL int timer_expire(void *arg)
     cputime_t expires;
 
     if (tmr_keep & 0x02) {
-        printf("[%s]Enter..., loop=%d\n", __func__, tmr_loop++);
+        Printf("[%s]Enter..., loop=%d\n", __func__, tmr_loop++);
     }
 
     if (tmr_keep) {
@@ -176,7 +176,7 @@ static void *taskRtn1(void *arg)
     timer_add_test();
 
     sysClkRateSet(CONFIG_HZ);
-    
+
     flagInit(&semFlags, 0, 0);
 
     taskSpawn("t2",     10, 0, 4096, taskRtn2, semId);
@@ -275,7 +275,7 @@ int main (int argc, char *argv[])
     msgQId = msgQCreate(10, 128, 0);
 
     if (OK != rc) {
-        printf("taskLibInit failed\n");
+        Printf("taskLibInit failed\n");
     }
 
     luosStart(taskRtn1, NULL, 4096);

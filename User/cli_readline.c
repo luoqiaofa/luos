@@ -63,7 +63,7 @@ static char *delete_char (char *buffer, char *p, int *colp, int *np, int plen)
  * Author: Janghoon Lyu <nandy@mizi.com>
  */
 
-#define putnstr(str, n)    printf("%.*s", (int)n, str)
+#define putnstr(str, n)    Printf("%.*s", (int)n, str)
 
 #define CTL_CH(c)        ((c) - 'a' + 1)
 #define CTL_BACKSPACE        ('\b')
@@ -173,7 +173,7 @@ static void cread_print_hist_list(void)
             i = 0;
         if (i == hist_add_idx)
             break;
-        printf("%s\n", hist_list[i]);
+        Printf("%s\n", hist_list[i]);
         n++;
         i++;
     }
@@ -189,7 +189,7 @@ static void cread_print_hist_list(void)
 
 #define ERASE_TO_EOL() {                         \
     if (num < eol_num) {                         \
-        printf("%*s", (int)(eol_num - num), ""); \
+        Printf("%*s", (int)(eol_num - num), ""); \
         do {                                     \
             getcmd_putch(CTL_BACKSPACE);         \
         } while (--eol_num > num);               \

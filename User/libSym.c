@@ -9,8 +9,9 @@
 
 #define DBG_SYM 0
 #define SYM_SORTED 1
+int Printf(const char *fmt, ...);
 
-#define sys_printf(fmt, args...) printf(fmt " \n", ## args)
+#define sys_printf(fmt, args...) Printf(fmt " \n", ## args)
 
 
 #if DBG_SYM
@@ -18,7 +19,7 @@
 #define SYM_LOG(format, args...) sys_printf("[%s,%d]: " format "\n", __FILE__, __LINE__, ## arg)
 #else
 #define sym_dbg(fmt, args...)
-#define SYM_LOG(fmt, args...)  printf(fmt " \n", ## args)
+#define SYM_LOG(fmt, args...)  Printf(fmt " \n", ## args)
 #endif
 
 struct t_libSymTbl {

@@ -95,6 +95,9 @@ void cpuIntContextSwitchTrig(register void* cur, register void* tcb_high)
 
 void HardFault_Handler(void)
 {
+#if 1
+    while (1) {;}
+#else
     M3_INT_STK *stk;
 
     stk = (M3_INT_STK *)cpuRunningTaskStkGet();
@@ -118,6 +121,7 @@ void HardFault_Handler(void)
     stk->PSR);
     while (1) {
     }
+#endif
 }
 
 

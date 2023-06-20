@@ -8,8 +8,17 @@ OS_CPU_SysTickHandler  PROC
     IMPORT  coreIntExit
     IMPORT  tickAnnounce
     EXPORT  OS_CPU_SysTickHandler
+    IMPORT  intIsFromHandlerSet
     CPSID  I
     PUSH    {R4-R11,LR}
+
+    TST      LR,#0x04               ; Determine return stack from EXC_RETURN bit 2
+    ITE      EQ
+    MOVEQ    R0,#1                 ; Get MSP if return stack is MSP
+    MOVNE    R0,#0                 ; Get PSP if return stack is PSP
+    LDR      R2, =intIsFromHandlerSet
+    BLX      R2
+
     LDR     R0, =coreIntEnter
     BLX     R0
     LDR     R2, =tickAnnounce
@@ -72,17 +81,26 @@ cpuIntUnlock PROC
     BX  LR
     ENDP
 
-;    GBLA USE_RX_SEM 
+;    GBLA USE_RX_SEM
 ;USE_RX_SEM  SETA 0
-    IF :DEF: USE_RX_SEM
+                 IF      :DEF:USE_RX_SEM
 USART1_IRQHandler PROC
     EXPORT USART1_IRQHandler
     IMPORT  __osinfo__
     IMPORT  coreIntEnter
     IMPORT  coreIntExit
     IMPORT  UART_Receive
+    IMPORT  intIsFromHandlerSet
     CPSID  I
     PUSH    {R4-R11,LR}
+
+    TST      LR,#0x04               ; Determine return stack from EXC_RETURN bit 2
+    ITE      EQ
+    MOVEQ    R0,#1                 ; Get MSP if return stack is MSP
+    MOVNE    R0,#0                 ; Get PSP if return stack is PSP
+    LDR      R2, =intIsFromHandlerSet
+    BLX      R2
+
     LDR     R0, =coreIntEnter
     BLX     R0
     LDR     R2, =UART_Receive

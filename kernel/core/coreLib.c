@@ -187,6 +187,24 @@ STATUS coreTickDoing(void)
     return 0;
 }
 
+int interrupt_from_handler = 0;
+int intIsFromHandlerSet(int isHandler)
+{
+#ifdef DBG
+    if (isHandler) {
+        interrupt_from_handler = 1;
+    } else {
+        interrupt_from_handler = 0;
+    }
+#else
+    interrupt_from_handler = isHandler;
+#endif
+}
+
+int intIsFromHandlerGet(void)
+{
+    return interrupt_from_handler;
+}
 
 void coreTrySchedule(void)
 {
@@ -194,12 +212,16 @@ void coreTrySchedule(void)
     int level;
 
     level = intLock();
-
+    if (interrupt_from_handler) {
+        intUnlock(level);
+        return ;
+    }
     tcb = currentTask();
     if (taskLocked()) {
         intUnlock(level);
         return;
     }
+
     if (0 == __osinfo__.intNestedCnt) {
         tickQWorkDoing();
     }
@@ -225,6 +247,7 @@ void coreIntExit(void)
 {
     coreTrySchedule();
     osCoreInfo()->intNestedCnt--;
+    intIsFromHandlerSet(0);
 }
 
 void coreContextHook(void)
@@ -261,7 +284,7 @@ void coreScheduleDisable(void)
 }
 
 #include <stdio.h>
-#define log(fmt, args...) printf(fmt " \n", ## args)
+#define log(fmt, args...) Printf(fmt " \n", ## args)
 STATUS i(void)
 {
     // int level;
