@@ -123,10 +123,10 @@ STATUS tickQWorkDoing(void)
 
 STATUS coreTickDoing(void)
 {
-    TLIST *node, *node_del;
+    TLIST *node;
     LUOS_INFO *osInfo;
     PriInfo_t *pri;
-    TCB_ID tcb = currentTask();
+    TCB_ID tcb, tdel;
 
     if (taskLocked()) {
         return ERROR;
@@ -136,59 +136,61 @@ STATUS coreTickDoing(void)
     osInfo->sysTicksCnt++;
     osInfo->absTicksCnt++;
     timerListDing();
-    tcb->runTicksCnt++;
-    node_del = NULL;
-    list_for_each(node, &osInfo->qDelayHead) {
-        if (NULL != node_del) {
-            list_del(node_del);
-            tcb = list_entry(node_del, LUOS_TCB, qNodeSched);
-            taskReadyAdd(tcb, true);
-            node_del = NULL;
-        }
-        tcb = list_entry(node, LUOS_TCB, qNodeSched);
-        if (tcb->dlyTicks > 0) {
-            tcb->dlyTicks--;
-            if (0 == tcb->dlyTicks) {
-                tcb->status &= ~TASK_DELAY;
-                if (TASK_READY == tcb->status) {
-                    node_del = node;
-                    tcb->errCode = 0;
-                } else {
-                    /* pend envent timeout */
-                    tcb->status &= ~TASK_PEND;
-                    if (TASK_READY == tcb->status) {
-                        node_del = node;
-                        tcb->errCode = ERROR;
-                    }
-                }
-            }
-        }
-    }
-    if (NULL != node_del) {
-        list_del_init(node_del);
-        tcb = list_entry(node_del, LUOS_TCB, qNodeSched);
-        taskReadyAdd(tcb, true);
-        node_del = NULL;
-    }
+
     tcb = currentTask();
+    tcb->runTicksCnt++;
     pri = osInfo->priInfoTbl + tcb->priority;
     if (SCHED_RR == pri->schedPolicy) {
         if (tcb->sliceTicksCnt < pri->sliceTicks) {
             tcb->sliceTicksCnt++;
+            if (tcb->sliceTicksCnt >= pri->sliceTicks) {
+                tcb->sliceTicksCnt = 0;
+                if (pri->numTask > 1) {
+                    list_del_init(&tcb->qNodeSched);
+                    list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
+                }
+            }
         }
     }
 
-    if (pri->numTask > 1) {
-        if (SCHED_RR == pri->schedPolicy) {
-            if (tcb->sliceTicksCnt >= pri->sliceTicks) {
-                list_del_init(&tcb->qNodeSched);
-                list_add_tail(&tcb->qNodeSched, &pri->qReadyHead);
-                tcb->sliceTicksCnt = 0;
+    tdel = NULL;
+    list_for_each(node, &osInfo->qDelayHead) {
+        if (NULL != tdel) {
+            list_del_init(&tdel->qNodeSched);
+            if (TASK_READY == tdel->status) {
+                taskReadyAdd(tdel, true);
+            } else {
+                list_add_tail(&tdel->qNodeSched, &osInfo->qPendHead);
             }
-        } /* SCHED_RR == pri->schedPolicy */
-    } /* (pri->numTask > 1) */ else {
-        /* only one task in the priority ready table */
+            tdel = NULL;
+        }
+        tcb = list_entry(node, LUOS_TCB, qNodeSched);
+        while(0 == tcb->dlyTicks){;}
+        tcb->dlyTicks--;
+        if (0 == tcb->dlyTicks) {
+            tdel = tcb;
+            tcb->status &= ~TASK_DELAY;
+            if (TASK_READY == tcb->status) {
+                tcb->errCode = 0;
+            } else {
+                /* pend envent timeout */
+                tcb->status &= ~TASK_PEND;
+                if (TASK_READY == tcb->status) {
+                    tcb->errCode = ERROR;
+                }
+            }
+        }
     }
+    if (NULL != tdel) {
+        list_del_init(&tdel->qNodeSched);
+        if (TASK_READY == tdel->status) {
+            taskReadyAdd(tdel, true);
+        } else {
+            list_add_tail(&tdel->qNodeSched, &osInfo->qPendHead);
+        }
+        tdel = NULL;
+    }
+
     return 0;
 }
 
