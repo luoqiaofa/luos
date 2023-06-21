@@ -96,6 +96,7 @@ STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priori
     if (OK != rc) {
         return rc;
     }
+    taskLock();
     msg = list_first_entry(&msgQId->qFree, msgQNode_t, qNode);
     while (NULL == msg) {;}
     msgQId->numFree--;
@@ -113,6 +114,7 @@ STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priori
     } else {
         list_add_tail(&msg->qNode, &msgQId->msgQ);
     }
+    taskUnlock();
     rc = semGive(&msgQId->semMsgRx);
 
     return rc;
@@ -131,6 +133,7 @@ int msgQReceive(MSG_Q_ID msgQId, char *buf, UINT maxNBytes, int timeout)
     if (OK != rc) {
         return 0;
     }
+    taskLock();
     msg = list_first_entry(&msgQId->msgQ, msgQNode_t, qNode);
     while (NULL == msg) {;}
     list_del_init(&msg->qNode);
@@ -148,6 +151,7 @@ int msgQReceive(MSG_Q_ID msgQId, char *buf, UINT maxNBytes, int timeout)
     msgQId->numFree++;
     list_add_tail(&msg->qNode, &msgQId->qFree);
 
+    taskUnlock();
     rc = semGive(&msgQId->semMsgTx);
 
     return maxNBytes;
