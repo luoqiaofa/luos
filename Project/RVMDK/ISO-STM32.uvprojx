@@ -338,7 +338,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>STM32F10X_HD, USE_STDPERIPH_DRIVER, USE_RX_SEM</Define>
+              <Define>STM32F10X_HD, USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\Libraries\CMSIS;..\..\Libraries\FWlib\inc;..\..\User;..\..\User\APP;..\..\User\BSP;..\..\User\BSP\led;..\..\User\uC-CPU;..\..\User\uC-CPU\ARM-Cortex-M3\RealView;..\..\User\uC-LIB;..\..\User\uCOS-III\Source;..\..\User\uCOS-III\Ports\ARM-Cortex-M3\Generic\RealView;..\..\User\BSP\i2c;..\..\User\BSP\adc;..\..\User\BSP\dac;..\..\User\BSP\internal_flash;..\..\User\BSP\485;..\..\User\BSP\usart;..\..\User\BSP\GeneralTim</IncludePath>
             </VariousControls>
@@ -356,7 +356,7 @@
             <ClangAsOpt>4</ClangAsOpt>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>USE_RX_SEM</Define>
+              <Define></Define>
               <Undefine></Undefine>
               <IncludePath></IncludePath>
             </VariousControls>
