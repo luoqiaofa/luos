@@ -85,9 +85,11 @@ typedef struct luosInfo {
     BOOL      running;
     BOOL      schedLocked;
     UINT      intNestedCnt;
-    UINT      sysTicksCnt;
+    ULONG     sysTicksCnt;
     UINT64    absTicksCnt;
     ULONG     contextCnt;
+    UINT      numPended;
+    UINT      numDelayed;
 } LUOS_INFO;
 
 extern LUOS_INFO __osinfo__;
@@ -209,7 +211,7 @@ extern void coreTrySchedule(void);
 STATUS coreTickDoing(void);
 extern STATUS sysClkRateSet(int ticksPerSecond);
 extern int sysClkRateGet(void);
-extern uint32_t sysClkTickGet(void);
+extern ULONG sysClkTickGet(void);
 void coreIntEnter(void);
 void coreIntExit(void);
 extern STATUS i(void);
@@ -218,6 +220,10 @@ extern void tickAnnounce(void);
 extern STATUS luosStart(START_RTN appStart, void *appArg, int stackSize);
 int Printf(const char *fmt, ...);
 UINT cpuUsageGet(void);
+void luosQDelayAdd(TCB_ID tcb);
+void luosQDelayRemove(TCB_ID tcb);
+void luosSysTicksReset(ULONG delta);
+void luosDelay(TCB_ID tcb, int ticks);
 
 #endif /* #ifndef __OSCORE_H__ */
 

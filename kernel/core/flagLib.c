@@ -167,9 +167,8 @@ again:
     taskReadyRemove(tcb);
     tcb->status |= TASK_PEND;
     if (WAIT_FOREVER != timeout) {
-        tcb->dlyTicks = timeout;
+        luosDelay(tcb, timeout);
         tcb->status |= TASK_DELAY;
-        list_add_tail(&tcb->qNodeSched, &(osInfo->qDelayHead));
     } else {
         list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
     }

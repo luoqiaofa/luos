@@ -36,15 +36,15 @@
 typedef struct luosTcb {
     char *    name;
     UINT      status;
-    int32_t   errCode;
     int32_t   priority;
+    int       options;
     void *    stack;     /* statck pointer */
     void *    stkBase;   /* statck origin pointer */
     void *    stkEnd;    /* statck origin pointer */
     int32_t   stkSize;   /* statck size */
     int32_t   stkLimit;
-    int32_t   dlyTicks;
-    int       options;
+    UINT      dlyTicks;
+    int32_t   errCode;
     TLIST     memListHdr;  /* mem list header */
     TLIST     qNodeSched;  /* for ready, delay queue list */
     TLIST     qNodePend;   /* for mutex,msgqueue,semphore,suspend cause to be pended. etc */

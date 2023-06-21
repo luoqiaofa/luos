@@ -121,8 +121,7 @@ static int taskDelTimer(void *arg)
         return rc;
     }
 tmr_del_loop:
-    expires = sysClkTickGet();
-    expires += 50 * sysClkRateGet() / 1000; /* 50 ms */
+    expires = 50 * sysClkRateGet() / 1000; /* 50 ms */
     timerModify((timerid_t)tmr, expires);
     return rc;
 }
@@ -131,19 +130,18 @@ static void taskDelDefer(TCB_ID tcb)
 {
     TCB_ID *ptcb;
     timerList_t *tmr;
-    cputime_t expires;
+    ULONG expires;
     size_t sz = sizeof(timerid_t);
 
     sz += sizeof(tcb);
     tmr = (timerList_t *)osMemAlloc(sz);
     if (NULL == tmr) return;
-    expires = sysClkTickGet();
-    expires += sysClkRateGet();
+    expires = sysClkRateGet();
     ptcb = (TCB_ID *)(tmr + 1);
     *ptcb = tcb;
 
-    timerInit((timerid_t)tmr, expires, taskDelTimer, tmr);
-    timerAdd((timerid_t)tmr);
+    timerInit((timerid_t)tmr, taskDelTimer, tmr);
+    timerAdd((timerid_t)tmr, expires);
 }
 
 static int taskReturn(void)
@@ -275,25 +273,22 @@ STATUS taskUnlock (void)
     tcb = currentTask();
     tcb->lockCnt--;
     intUnlock(level);
-    coreTrySchedule();
     return 0;
 }
 
 STATUS taskDelay(int ticks)
 {
     LUOS_TCB *tcb;
-    int level;
 
     if (ticks < 0) {
         return -1;
     }
-    level = intLock();
+    taskLock();
     tcb = currentTask();
-    tcb->dlyTicks = ticks;
     taskReadyRemove(tcb);
+    luosDelay(tcb, ticks);
     tcb->status = TASK_DELAY;
-    list_add_tail(&tcb->qNodeSched, &osInfo->qDelayHead);
-    intUnlock(level);
+    taskUnlock();
     coreTrySchedule();
     return 0;
 }
@@ -643,6 +638,4 @@ STATUS taskStatusString(tid_t tid, char *str)
     strcpy(str, strs);
     return OK;
 }
-
-
 

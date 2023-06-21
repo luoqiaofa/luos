@@ -21,9 +21,9 @@
 
 typedef int (*TIMER_CB)(void *arg);
 typedef struct timer_list {
-    TLIST     entry;
-    cputime_t expires;
-    void *    arg;
+    TLIST   entry;
+    ULONG   expires;
+    void *  arg;
     TIMER_CB callback;
 } timerList_t;
 
@@ -38,14 +38,13 @@ static inline void timerQInit(timerQ_t *q)
     INIT_LIST_HEAD(&q->list);
 }
 
-static inline void timerQAdd(timerQ_t *q,  timerList_t *tmr)
-{
-    q->numItem++;
-    list_add_tail(&tmr->entry, &q->list);
-}
+void timerQAdd(timerQ_t *q,  timerList_t *tmr);
 
 static inline void timerQRemove(timerQ_t *q,  timerList_t *tmr)
 {
+    if (list_empty(&q->list)) {
+        return ;
+    }
     q->numItem--;
     list_del_init(&tmr->entry);
 }
@@ -53,13 +52,13 @@ static inline void timerQRemove(timerQ_t *q,  timerList_t *tmr)
 typedef cpudata_t timerid_t;
 
 STATUS timerLibInit(void);
-timerid_t timerCreate(cputime_t expires, TIMER_CB cb, void *arg);
-STATUS timerInit(timerid_t tmrid, cputime_t expires, TIMER_CB cb, void *arg);
-STATUS timerAdd(timerid_t tmrid);
+timerid_t timerCreate(TIMER_CB cb, void *arg);
+STATUS timerInit(timerid_t tmrid, TIMER_CB cb, void *arg);
+STATUS timerAdd(timerid_t tmrid, ULONG ticksDefer);
 STATUS timerDelete(timerid_t tmrid);
-STATUS timerModify(timerid_t tmrid, cputime_t expires);
+STATUS timerModify(timerid_t tmrid, ULONG ticksDefer);
 void timerListDing(void);
-
+void timerQWaitAdjust(ULONG delta);
 
 #endif /* #ifndef __TIMERLIB_H__ */
 

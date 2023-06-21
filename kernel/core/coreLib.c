@@ -156,7 +156,7 @@ STATUS coreTickDoing(void)
     tdel = NULL;
     list_for_each(node, &osInfo->qDelayHead) {
         if (NULL != tdel) {
-            list_del_init(&tdel->qNodeSched);
+            luosQDelayRemove(tdel);
             if (TASK_READY == tdel->status) {
                 taskReadyAdd(tdel, true);
             } else {
@@ -165,24 +165,24 @@ STATUS coreTickDoing(void)
             tdel = NULL;
         }
         tcb = list_entry(node, LUOS_TCB, qNodeSched);
-        while(0 == tcb->dlyTicks){;}
-        tcb->dlyTicks--;
-        if (0 == tcb->dlyTicks) {
-            tdel = tcb;
-            tcb->status &= ~TASK_DELAY;
+        while(NULL == tcb){;}
+        if (osInfo->sysTicksCnt < tcb->dlyTicks) {
+            break;
+        }
+        tdel = tcb;
+        tcb->status &= ~TASK_DELAY;
+        if (TASK_READY == tcb->status) {
+            tcb->errCode = 0;
+        } else {
+            /* pend envent timeout */
+            tcb->status &= ~TASK_PEND;
             if (TASK_READY == tcb->status) {
-                tcb->errCode = 0;
-            } else {
-                /* pend envent timeout */
-                tcb->status &= ~TASK_PEND;
-                if (TASK_READY == tcb->status) {
-                    tcb->errCode = ERROR;
-                }
+                tcb->errCode = ERROR;
             }
         }
     }
     if (NULL != tdel) {
-        list_del_init(&tdel->qNodeSched);
+        luosQDelayRemove(tdel);
         if (TASK_READY == tdel->status) {
             taskReadyAdd(tdel, true);
         } else {
@@ -270,7 +270,7 @@ void coreContextHook(void)
     tcb->schedCnt++;
 }
 
-uint32_t sysClkTickGet(void)
+ULONG sysClkTickGet(void)
 {
     return osCoreInfo()->sysTicksCnt;
 }
@@ -444,5 +444,74 @@ UINT cpuUsageGet(void)
     ticks_valid = ticks - idleTcb->runTicksCnt;
     rc = (ticks_valid * 100000)/ticks;
     return rc;
+}
+
+void luosQDelayAdd(TCB_ID tcb)
+{
+    TCB_ID tcb1;
+    LUOS_INFO *osInfo;
+    TLIST *node, *prev, *next, *new;
+
+    osInfo = &__osinfo__;
+    list_for_each(node, &osInfo->qDelayHead) {
+        tcb1 = list_entry(node, LUOS_TCB, qNodeSched);
+        while (NULL == tcb1) {;/* hang up here */}
+        if (tcb->dlyTicks < tcb1->dlyTicks) {
+            osInfo->numDelayed++;
+            new = &tcb->qNodeSched;
+            next = &tcb1->qNodeSched;
+            prev = next->prev;
+            __list_add(new, prev, next);
+            return ;
+        }
+    }
+    osInfo->numDelayed++;
+    list_add_tail(&tcb->qNodeSched, &osInfo->qDelayHead);
+}
+
+void luosQDelayRemove(TCB_ID tcb)
+{
+    LUOS_INFO *osInfo;
+
+    osInfo = &__osinfo__;
+    if (list_empty(&osInfo->qDelayHead)) {
+        return ;
+    }
+    osInfo->numDelayed--;
+    list_del_init(&tcb->qNodeSched);
+}
+
+void luosDelay(TCB_ID tcb, int ticks)
+{
+    ULONG delta;
+    ULONG expires;
+    LUOS_INFO *osInfo;
+
+    osInfo = &__osinfo__;
+    expires = osInfo->sysTicksCnt;
+    if ((expires + ticks) < expires) {
+        delta = ~expires + 1;
+        luosSysTicksReset(delta);
+    }
+
+    expires = osInfo->sysTicksCnt + ticks;
+    tcb->dlyTicks = expires;
+    luosQDelayAdd(tcb);
+}
+
+void luosSysTicksReset(ULONG delta)
+{
+    TCB_ID tcb;
+    TLIST *node;
+    LUOS_INFO *osInfo;
+
+    osInfo = &__osinfo__;
+    osInfo->sysTicksCnt = 0;
+    list_for_each(node, &osInfo->qDelayHead) {
+        tcb = list_entry(node, LUOS_TCB, qNodeSched);
+        while (NULL == tcb) {;/* hang up here */}
+        tcb->dlyTicks += delta;
+    }
+    timerQWaitAdjust(delta);
 }
 

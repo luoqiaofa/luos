@@ -38,7 +38,7 @@ STATUS timerLibInit(void)
     return OK;
 }
 
-timerid_t timerCreate(cputime_t expires, TIMER_CB cb, void *arg)
+timerid_t timerCreate(TIMER_CB cb, void *arg)
 {
     timerList_t *tmr;
 
@@ -46,28 +46,43 @@ timerid_t timerCreate(cputime_t expires, TIMER_CB cb, void *arg)
     if (NULL == tmr) {
         return 0;
     }
-    timerInit((timerid_t)tmr, expires, cb, arg);
+    timerInit((timerid_t)tmr, cb, arg);
     return (timerid_t)tmr;
 }
 
-STATUS timerInit(timerid_t tmrid, cputime_t expires, TIMER_CB cb, void *arg)
+STATUS timerInit(timerid_t tmrid, TIMER_CB cb, void *arg)
 {
     timerList_t *tmr = (timerList_t *)tmrid;
 
     INIT_LIST_HEAD(&tmr->entry);
     tmr->arg      = arg;
     tmr->callback = cb;
-    tmr->expires  = expires;
+    tmr->expires  = 0;
     return OK;
 }
 
-STATUS timerAdd(timerid_t tmrid)
+STATUS timerAdd(timerid_t tmrid, ULONG ticksDefer)
 {
-    int level;
+    ULONG expires;
+    ULONG delta;
+    timerList_t *tmr = (timerList_t *)tmrid;
+    LUOS_INFO *osInfo = osCoreInfo();
 
-    level = intLock();
+    taskLock();
+    if (!list_empty(&tmr->entry)) {
+        taskUnlock();
+        return ERROR;
+    }
+
+    expires = osInfo->sysTicksCnt + ticksDefer;
+    if (expires < osInfo->sysTicksCnt) {
+        delta = ~osInfo->sysTicksCnt + 1;
+        luosSysTicksReset(delta);
+    }
+    tmr->expires = osInfo->sysTicksCnt + ticksDefer;
     timerQAdd(&qTimerWait, (timerList_t *)tmrid);
-    intUnlock(level);
+
+    taskUnlock();
     return OK;
 }
 
@@ -76,15 +91,9 @@ STATUS timerDelete(timerid_t tmrid)
     return OK;
 }
 
-STATUS timerModify(timerid_t tmrid, cputime_t expires)
+STATUS timerModify(timerid_t tmrid, ULONG ticksDefer)
 {
-    timerList_t *tmr = (timerList_t *)tmrid;
-
-    tmr->expires = expires;
-    if (list_empty(&tmr->entry)) {
-        timerAdd(tmrid);
-    }
-    return OK;
+    return timerAdd(tmrid, ticksDefer);
 }
 
 LOCAL void *timerTaskEntry(void *arg)
@@ -127,6 +136,28 @@ LOCAL void *timerTaskEntry(void *arg)
     return NULL;
 }
 
+void timerQAdd(timerQ_t *q,  timerList_t *tmr)
+{
+    timerList_t *cur;
+    TLIST *node, *new, *next, *prev;
+
+    list_for_each(node, &q->list) {
+        cur = list_entry(node, timerList_t, entry);
+        while (NULL == cur) {;/* hang up here */}
+        if (tmr->expires < cur->expires) {
+            q->numItem++;
+            new  = &tmr->entry;
+            next = &cur->entry;
+            prev = next->prev;
+            __list_add(new, prev, next);
+            return ;
+        }
+    }
+    q->numItem++;
+    list_add_tail(&tmr->entry, &q->list);
+}
+
+
 void timerListDing(void)
 {
     TLIST *node;
@@ -143,14 +174,10 @@ void timerListDing(void)
             tdel = NULL;
         }
         tmr = list_entry(node, timerList_t, entry);
-#if 0
-        if (0 == tmr->expires) {
-            continue;
+        if (osInfo->sysTicksCnt < tmr->expires) {
+            return;
         }
-#endif
-        if (osInfo->sysTicksCnt == tmr->expires) {
-            tdel = tmr;
-        }
+        tdel = tmr;
     }
     if (NULL != tdel) {
         timerQRemove(&qTimerWait, tdel);
@@ -165,6 +192,18 @@ void timerListDing(void)
          taskResume((tid_t)taskIdTimer);
          taskUnlock();
 #endif
+    }
+}
+
+void timerQWaitAdjust(ULONG delta)
+{
+    TLIST *node;
+    timerList_t *tmr;
+
+    list_for_each(node, &qTimerWait.list) {
+        tmr = list_entry(node, timerList_t, entry);
+        while (NULL == tmr) {;}
+        tmr->expires += delta;
     }
 }
 

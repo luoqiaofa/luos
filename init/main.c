@@ -79,8 +79,7 @@ LOCAL int timer_expire(void *arg)
     }
 
     if (tmr_keep) {
-        expires = sysClkTickGet();
-        expires += tmr_nsec_dly * sysClkRateGet();
+        expires = tmr_nsec_dly * sysClkRateGet();
         timerModify((timerid_t)&timerL, expires);
     }
     return 0;
@@ -88,11 +87,11 @@ LOCAL int timer_expire(void *arg)
 
 int timer_add_test(void)
 {
-    cputime_t expires = sysClkTickGet();
+    ULONG ticksDefer;
 
-    expires += sysClkRateGet();
-    timerInit((timerid_t)&timerL, expires, timer_expire, NULL);
-    timerAdd((timerid_t)&timerL);
+    ticksDefer = sysClkRateGet();
+    timerInit((timerid_t)&timerL, timer_expire, NULL);
+    timerAdd((timerid_t)&timerL, ticksDefer);
     tmr_loop = 0;
     return 0;
 }
@@ -117,7 +116,7 @@ static void *taskMsgRx(void *arg)
     return NULL;
 }
 
-int nsec_freq = 2;
+int nsec_freq = 30;
 int msg_loop_cnt = 0;
 static void *taskMsgTx(void *arg)
 {
