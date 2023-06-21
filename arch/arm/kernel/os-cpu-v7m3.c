@@ -65,7 +65,7 @@ int __asm cpuCntLeadZeros(cpudata_t val)
     clz     r0, r0
     bx      lr
 }
-#else /* gnu gcc */
+#elif defined(__GNUC__)/* gnu gcc */
 int cpuCntLeadZeros(cpudata_t val)
 {
     __asm__ __volatile__(
@@ -76,6 +76,8 @@ int cpuCntLeadZeros(cpudata_t val)
             );
     return val;
 }
+#else
+#error "Unsuppoted compiler!"
 #endif
 
 #if 1
