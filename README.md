@@ -30,5 +30,9 @@
       命令(符号表)查找命令示例如下:<p>
       ![image](https://github.com/luoqiaofa/luos/assets/11310157/d885b1e9-f1a1-4f71-9fae-1e48e6d0dd1e)
 
+    任务基本状态信息打印如下:<p>
+    ![image](https://github.com/luoqiaofa/luos/assets/11310157/a46ce29a-5271-44c5-84d5-d88c8d1032e5)
+
+
 
 
