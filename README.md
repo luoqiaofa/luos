@@ -14,7 +14,7 @@
     ![image](https://github.com/luoqiaofa/luos/assets/11310157/ecc42d89-da48-4a74-9425-0d819e8fa175)
     <p>
         
-    命令格式使用帮助<p>
+    命令格式使用帮助---全局函数名或全局变量名即为命令, 但变量名因C语言符号性质, 只能对int型全局变量进行操作<p>
         
      ![image](https://github.com/luoqiaofa/luos/assets/11310157/e4faeace-e90d-4a9e-a4b9-8baa8a8252c9)
     <p>命令参数若为字符串, 字符串必须使用双引号""包括起来<p>
