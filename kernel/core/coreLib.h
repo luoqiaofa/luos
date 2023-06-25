@@ -163,18 +163,6 @@ static inline void taskReadyAdd(TCB_ID tcb, BOOL toTail)
     }
 }
 
-static inline void tcbActivate(TCB_ID tcb)
-{
-    if (TASK_READY == tcb->status) {
-        return ;
-    }
-    tcb->status &= ~TASK_SUSPEND;
-    if (TASK_READY == tcb->status) {
-        list_del_init(&tcb->qNodeSched);
-        taskReadyAdd(tcb, true);
-    }
-}
-
 int cpuCntLeadZeros(cpudata_t val);
 static inline TCB_ID highReadyTaskGet(void)
 {
@@ -204,6 +192,18 @@ static inline TCB_ID highReadyTaskGet(void)
     return tcb;
 }
 
+static inline void tcbActivate(TCB_ID tcb)
+{
+    if (TASK_READY == tcb->status) {
+        return ;
+    }
+    tcb->status &= ~TASK_SUSPEND;
+    if (TASK_READY == tcb->status) {
+        list_del_init(&tcb->qNodeSched);
+        taskReadyAdd(tcb, true);
+    }
+}
+
 extern STATUS coreLibInit(void);
 extern void * osMemAlloc(size_t nbytes);
 extern STATUS osMemFree(void *ptr);
@@ -224,6 +224,9 @@ void luosQDelayAdd(TCB_ID tcb);
 void luosQDelayRemove(TCB_ID tcb);
 void luosSysTicksReset(ULONG delta);
 void luosDelay(TCB_ID tcb, int ticks);
+int sysHwInit(void);
+int Printf(const char *fmt, ...);
+int shellLibInit(void);
 
 #endif /* #ifndef __OSCORE_H__ */
 

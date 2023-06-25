@@ -886,6 +886,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\kernel\core\flagLib.c</FilePath>
             </File>
+            <File>
+              <FileName>shellLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\kernel\core\shellLib.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>

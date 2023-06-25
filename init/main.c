@@ -33,9 +33,7 @@ int cpu_sizeof(void);
 
 extern int version(void);
 LOCAL SEM_ID semId;
-SEMAPHORE  semMuxprint;
 
-static void *taskRtn2(void *arg);
 extern void USARTx_Config(void);
 extern char * readline(const char *const prompt);
 
@@ -165,15 +163,35 @@ static void *taskFlagsTake(void *arg)
     return NULL;
 }
 
+extern int usrSymInit(void);
 extern void LED_Init ( void );
 extern void ledToggle(void);
 int dbg_print = 0;
-static void *taskRtn1(void *arg)
+static void *usrRoot(void *arg)
 {
+    int rc;
     tid_t tid;
     TCB_ID tcb;
     int cnt = 0;
     char tname[20] = "tOne";
+
+    rc = sysHwInit();
+	version();
+    // cpu_sizeof();
+
+    usrSymInit();
+
+    semId = semCCreate(SEM_Q_PRIORITY, 0);
+    if (NULL == semId) {
+        return NULL;
+    }
+
+    msgQId = msgQCreate(10, 128, 0);
+
+    if (OK != rc) {
+        Printf("taskLibInit failed\n");
+        return NULL;
+    }
 
     timer_add_test();
 
@@ -181,7 +199,6 @@ static void *taskRtn1(void *arg)
 
     flagInit(&semFlags, 0, 0);
 
-    taskSpawn("t2",     10, 0, 4096, taskRtn2, semId);
     taskSpawn("tStat", CONFIG_NUM_PRIORITY-4, 0, 512,  taskStatus, NULL);
     taskSpawn("tMsgTx", 12, 0, 2048,  taskMsgTx, NULL);
     taskSpawn("tMsgRx", 11, 0, 2048,  taskMsgRx, NULL);
@@ -213,40 +230,6 @@ static void *taskRtn1(void *arg)
     return NULL;
 }
 
-extern void SysReset(void);
-static void *taskRtn2(void *arg)
-{
-    char *cmdline;
-    size_t len = 0;
-    int cnt = 0;
-    int retVal;
-
-    sysSymTblInit();
-    usrSymInit();
-    while(true) {
-        cnt++;
-		// printf("[%s]cnt=%d\n", taskName(taskIdSelf()), cnt);
-        cmdline = readline("luos->");
-        if (NULL == cmdline) {
-            continue;
-        }
-        len = strlen(cmdline);
-        if (len > 0) {
-            if (dbg_print) {
-                Printf("len=%d,cmdline=%s\n", len, cmdline);
-            }
-            if (!strcmp("SysReset", cmdline)) {
-                SysReset();
-            }
-            retVal = shellCmdlineProcess(cmdline);
-            Printf("retVal=%d(0x%0x)\n", retVal, retVal);
-        }
-        // semTake(id, WAIT_FOREVER);
-        // taskDelay(2);
-    }
-    return NULL;
-}
-
 /*
  * ===  FUNCTION  ======================================================================
  *         Name:  main
@@ -255,79 +238,11 @@ static void *taskRtn2(void *arg)
  */
 int main (int argc, char *argv[])
 {
-    int rc;
-
-    USARTx_Config();
-	version();
-    // cpu_sizeof();
-
-    rc = coreLibInit();
-    rc = memPartLibInit();
-    rc = taskLibInit();
-    semCLibInit();
-    semMLibInit();
-    semBLibInit();
-    semMInit(&semMuxprint, 0);
-
-    semId = semCCreate(SEM_Q_PRIORITY, 0);
-    if (NULL == semId) {
-        return -1;
-    }
-
-    msgQId = msgQCreate(10, 128, 0);
-
-    if (OK != rc) {
-        Printf("taskLibInit failed\n");
-    }
-
-    luosStart(taskRtn1, NULL, 4096);
-    while (true) {
-    }
+    luosStart(usrRoot, NULL, 4096);
+    while (true) {;}
     return 0;
 }                /* ----------  end of function main  ---------- */
 
-
-#ifndef CONFIG_SYS_PBSIZE
-#define CONFIG_SYS_PBSIZE	(CONFIG_SYS_CBSIZE + 128)
-#endif
-
-int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
-{
-	int i;
-
-	i = vsnprintf(buf, size, fmt, args);
-
-	if (i < size)
-		return i;
-	if (size != 0)
-		return size - 1;
-	return 0;
-}
-
-
-int Printf(const char *fmt, ...)
-{
-	va_list args;
-	uint32_t i;
-
-	static char printbuffer[CONFIG_SYS_PBSIZE];
-
-    semTake(&semMuxprint, WAIT_FOREVER);
-	va_start(args, fmt);
-
-	/*
-	 * For this to work, printbuffer must be larger than
-	 * anything we ever want to print.
-	 */
-	printbuffer[0] = '\0';
-	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
-	va_end(args);
-
-	/* Print the string */
-	puts(printbuffer);
-	semGive(&semMuxprint);
-	return i;
-}
 
 int cpu_sizeof(void)
 {

@@ -190,4 +190,10 @@ int getc(FILE *stream)
     return fgetc(stream);
 }
 
+int sysHwInit(void)
+{
+    USARTx_Config();
+    return 0;
+}
+
 /*********************************************END OF FILE**********************/

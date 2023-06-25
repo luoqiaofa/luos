@@ -385,8 +385,13 @@ STATUS i(void)
     return 0;
 }
 
+TCB_ID shllTcbGet(void);
 static volatile UINT64 cpuIdleCnt = 0;
 static void *taskIdleEntry(void *arg) {
+    tid_t tshell;
+    
+    tshell = (tid_t)shllTcbGet();
+    taskActivate(tshell);
     while (true) {
         cpuIdleCnt++;
     };
@@ -394,8 +399,10 @@ static void *taskIdleEntry(void *arg) {
 }
 
 static TCB_ID idleTcb = NULL;
+extern int sysSymTblInit(void);
 STATUS luosStart(START_RTN appStart, void *appArg, int stackSize)
 {
+    int rc;
     int level;
     TCB_ID tcb, tcb_idle, tcb_root;
 
@@ -403,13 +410,34 @@ STATUS luosStart(START_RTN appStart, void *appArg, int stackSize)
         stackSize = 2 * 1024;
     }
 
+    rc = coreLibInit();
+    if (OK != rc) {
+        return rc;
+    }
+    rc = memPartLibInit();
+    if (OK != rc) {
+        return rc;
+    }
+    rc = taskLibInit();
+    if (OK != rc) {
+        return rc;
+    }
+    semCLibInit();
+    semMLibInit();
+    semBLibInit();
+
     timerLibInit();
 
-    tcb_root = (TCB_ID)taskCreate("tRoot", CONFIG_NUM_PRIORITY - 4, 0, stackSize, appStart, NULL);
+    sysSymTblInit();
+
+    shellLibInit();
+
+    tcb_root = (TCB_ID)taskCreate("tRoot", CONFIG_NUM_PRIORITY - 10, 0, stackSize, appStart, NULL);
     while (NULL == tcb_root) {;}
     tcb_idle = (TCB_ID)taskCreate("tIdle", CONFIG_NUM_PRIORITY - 1, 0, 512, taskIdleEntry, NULL);
     while (NULL == tcb_idle) {;}
     idleTcb = tcb_idle;
+
     level = intLock();
     tcbActivate(tcb_idle);
     tcbActivate(tcb_root);

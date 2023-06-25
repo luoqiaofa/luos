@@ -43,7 +43,7 @@ typedef struct luosTcb {
     void *    stkEnd;    /* statck origin pointer */
     int32_t   stkSize;   /* statck size */
     int32_t   stkLimit;
-    UINT      dlyTicks;
+    ULONG     dlyTicks;
     int32_t   errCode;
     TLIST     memListHdr;  /* mem list header */
     TLIST     qNodeSched;  /* for ready, delay queue list */
@@ -60,7 +60,7 @@ typedef struct luosTcb {
     void *    param;
     cpudata_t lockCnt;
     cpudata_t schedCnt;
-    cpudata_t runTicksCnt;
+    ULONG     runTicksCnt;
 } LUOS_TCB;
 
 typedef LUOS_TCB* TCB_ID;

@@ -2,7 +2,6 @@
 #include "libSym.h"
 
 extern int console_buffer[];
-extern int semMuxprint[];
 extern int cpuStatusCnt[];
 extern int dbg_print[];
 extern int interrupt_from_handler[];
@@ -220,7 +219,6 @@ static const TsymPara g_symTbl[] =
     {"semMInit"                      , SYM_TYPE_T, semMInit},
     {"semMLibInit"                   , SYM_TYPE_T, semMLibInit},
     {"semMTake"                      , SYM_TYPE_T, semMTake},
-    {"semMuxprint"                   , SYM_TYPE_B, semMuxprint},
     {"semQInit"                      , SYM_TYPE_T, semQInit},
     {"semTake"                       , SYM_TYPE_T, semTake},
     {"semTypeInit"                   , SYM_TYPE_T, semTypeInit},
