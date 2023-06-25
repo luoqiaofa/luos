@@ -39,5 +39,12 @@
     ![image](https://github.com/luoqiaofa/luos/assets/11310157/a46ce29a-5271-44c5-84d5-d88c8d1032e5)
 
 
-
+    目前支持的功能
+    1. 基于任务优先的调度, 优先级数值越低,优先级越高,低延迟
+    2. 互斥信号量   semMTake,semMGave
+    3. 计数型信号量 semCTake,semCGave
+    4. 二值信号量   semBTake,semBGave
+    5. 事件标志通知 flagTake,flagGave
+    6. 消息队列     msgQSend,msgQReceive
+    7. 定时器       timerAdd, timerModify
 
