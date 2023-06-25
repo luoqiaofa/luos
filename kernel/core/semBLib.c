@@ -82,7 +82,6 @@ SEM_ID semBCreate(int options, SEM_B_STATE initialState)
 
 STATUS semBGive(SEM_ID semId)
 {
-    int level;
     TCB_ID tcb;
 
     if (NULL == semId || semId->semType != SEM_TYPE_BINARY) {
@@ -92,18 +91,18 @@ STATUS semBGive(SEM_ID semId)
     if (NULL == semId->semOwner) {
         return OK;
     }
-    level = intLock();
+    taskLock();
     tcb = currentTask();
     if (tcb == semId->semOwner) {
         semId->semOwner = NULL;
         if (list_empty(&semId->qPendHead)) {
-            intUnlock(level);
+            taskUnlock();
             return OK;
         }
         if (OK == taskPendQueGet(tcb, semId)) {
             coreTrySchedule();
         }
-        intUnlock(level);
+        taskUnlock();
         return OK;
     }
     return ERROR;
@@ -111,8 +110,6 @@ STATUS semBGive(SEM_ID semId)
 
 STATUS semBTake(SEM_ID semId, int timeout)
 {
-    int level;
-    // PriInfo_t *pri;
     TCB_ID tcb;
     LUOS_INFO *osInfo = osCoreInfo();
 
@@ -127,15 +124,15 @@ again:
     if (tcb == semId->semOwner) {
         return OK;
     }
-    level = intLock();
+    taskLock();
     if (NULL == semId->semOwner) {
         semId->semOwner = tcb;
-        intUnlock(level);
+        taskUnlock();
         return OK;
     }
 
     if (NO_WAIT == timeout) {
-        intUnlock(level);
+        taskUnlock();
         return ERROR;
     }
     // pri = osInfo->priInfoTbl + tcb->priority;
@@ -148,7 +145,7 @@ again:
         list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
     }
     taskPendQuePut(tcb, semId);
-    intUnlock(level);
+    taskUnlock();
     coreTrySchedule();
     if (OK == tcb->errCode) {
         goto again;

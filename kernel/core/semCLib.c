@@ -62,32 +62,30 @@ SEM_ID semCCreate(int options, int initialCount)
 
 STATUS semCGive(SEM_ID semId)
 {
-    int level;
     TCB_ID tcb;
 
     if (NULL == semId || semId->semType != SEM_TYPE_COUNT) {
         return ERROR;
     }
 
-    level = intLock();
+    taskLock();
     tcb = currentTask();
     semId->semCount++;
     if (list_empty(&semId->qPendHead)) {
-        intUnlock(level);
+        taskUnlock();
         return OK;
     }
     if (OK == taskPendQueGet(tcb, semId)) {
-        intUnlock(level);
+        taskUnlock();
         coreTrySchedule();
         return OK;
     }
-    intUnlock(level);
+    taskUnlock();
     return OK;
 }
 
 STATUS semCTake(SEM_ID semId, int timeout)
 {
-    int level;
     // PriInfo_t *pri;
     TCB_ID tcb;
     LUOS_INFO *osInfo = osCoreInfo();
@@ -99,14 +97,14 @@ STATUS semCTake(SEM_ID semId, int timeout)
         return ERROR;
     }
 again:
-    level = intLock();
+    taskLock();
     if (semId->semCount > 0) {
         semId->semCount--;
-        intUnlock(level);
+        taskUnlock();
         return OK;
     }
     if (NO_WAIT == timeout) {
-        intUnlock(level);
+        taskUnlock();
         return ERROR;
     }
     tcb = currentTask();
@@ -121,7 +119,7 @@ again:
     }
     tcb->semIdPended = semId;
     taskPendQuePut(tcb, semId);
-    intUnlock(level);
+    taskUnlock();
     coreTrySchedule();
     if (OK == tcb->errCode) {
         goto again;
@@ -132,7 +130,6 @@ again:
 STATUS semCFlush(SEM_ID id)
 {
     int num = 0;
-    int level;
     TLIST *node, *n2;
     TCB_ID tcb;
 
@@ -144,7 +141,7 @@ STATUS semCFlush(SEM_ID id)
         return OK;
     }
     n2 = NULL;
-    level = intLock();
+    taskLock();
     list_for_each(node, &id->qPendHead) {
         num++;
         if (NULL != n2) {
@@ -170,6 +167,7 @@ STATUS semCFlush(SEM_ID id)
         n2 = NULL;
     }
     id->semCount = num;
-    intUnlock(level);
+    taskUnlock();
     return OK;
 }
+

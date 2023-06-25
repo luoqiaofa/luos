@@ -52,14 +52,13 @@ SEM_ID flagCreate(int options, UINT flags)
 
 STATUS flagGive(SEM_ID semId, UINT flags, int flgOptions)
 {
-    int level;
     TCB_ID tcb;
 
     if (NULL == semId || semId->semType != SEM_TYPE_FLAGS) {
         return ERROR;
     }
 
-    level = intLock();
+    taskLock();
     tcb = currentTask();
     switch (flgOptions) {
         case FLAG_OPT_SET_ALL:
@@ -73,21 +72,20 @@ STATUS flagGive(SEM_ID semId, UINT flags, int flgOptions)
             break;
     }
     if (list_empty(&semId->qPendHead)) {
-        intUnlock(level);
+        taskUnlock();
         return OK;
     }
     if (OK == taskPendQueGet(tcb, semId)) {
-        intUnlock(level);
+        taskUnlock();
         coreTrySchedule();
         return OK;
     }
-    intUnlock(level);
+    taskUnlock();
     return OK;
 }
 
 STATUS flagTake(SEM_ID semId, UINT flags, int flgOptions, int timeout)
 {
-    int level;
     UINT newflags;
     UINT updFlags = 0;
     // PriInfo_t *pri;
@@ -102,7 +100,7 @@ STATUS flagTake(SEM_ID semId, UINT flags, int flgOptions, int timeout)
     }
 again:
     willPended = false; 
-    level = intLock();
+    taskLock();
     tcb = currentTask();
     switch (tcb->flgOptions & FLAG_OPT_SETCLR_MSK) {
         case FLAG_OPT_SET_ALL:
@@ -146,7 +144,7 @@ again:
             }
             break;
         default:
-            intUnlock(level);
+            taskUnlock();
             return ERROR;
             break;
     }
@@ -154,11 +152,11 @@ again:
         if (tcb->flgOptions & FLAG_OPT_CONSUME) {
            semId->semEvents = updFlags;
         }
-        intUnlock(level);
+        taskUnlock();
         return OK;
     }
     if (NO_WAIT == timeout) {
-        intUnlock(level);
+        taskUnlock();
         return ERROR;
     }
     // pri = osInfo->priInfoTbl + tcb->priority;
@@ -174,7 +172,7 @@ again:
     }
     tcb->semIdPended = semId;
     taskPendQuePut(tcb, semId);
-    intUnlock(level);
+    taskUnlock();
     coreTrySchedule();
     if (OK == tcb->errCode) {
         goto again;
@@ -185,7 +183,6 @@ again:
 STATUS flagFlush(SEM_ID id)
 {
     int num = 0;
-    int level;
     TLIST *node, *n2;
     TCB_ID tcb;
 
@@ -197,7 +194,7 @@ STATUS flagFlush(SEM_ID id)
         return OK;
     }
     n2 = NULL;
-    level = intLock();
+    taskLock();
     list_for_each(node, &id->qPendHead) {
         num++;
         if (NULL != n2) {
@@ -223,7 +220,7 @@ STATUS flagFlush(SEM_ID id)
         n2 = NULL;
     }
     id->semEvents = num;
-    intUnlock(level);
+    taskUnlock();
     coreTrySchedule();
     return OK;
 }

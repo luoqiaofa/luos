@@ -7,9 +7,6 @@ extern int dbg_print[];
 extern int interrupt_from_handler[];
 extern int msg_loop_cnt[];
 extern int nsec_freq[];
-extern int numTickQWork[];
-extern int tickQWorkRdIdx[];
-extern int tickQworkWrIdx[];
 extern int tmr_keep[];
 extern int tmr_nsec_dly[];
 extern void * BSP_CPU_ClkFreq(void);
@@ -44,7 +41,11 @@ extern void * intUnlock(void);
 extern void * isValidNumber(void);
 extern void * ledToggle(void);
 extern void * LED_Init(void);
+extern void * luosDelay(void);
+extern void * luosQDelayAdd(void);
+extern void * luosQDelayRemove(void);
 extern void * luosStart(void);
+extern void * luosSysTicksReset(void);
 extern void * memPartAlloc(void);
 extern void * memPartFree(void);
 extern void * memPartInit(void);
@@ -82,12 +83,15 @@ extern void * semMTake(void);
 extern void * semQInit(void);
 extern void * semTake(void);
 extern void * semTypeInit(void);
+extern void * shellLibInit(void);
+extern void * shllTcbGet(void);
 extern void * sprintf(void);
 extern void * strStrip(void);
 extern void * strToInt(void);
 extern void * sysClkRateGet(void);
 extern void * sysClkRateSet(void);
 extern void * sysClkTickGet(void);
+extern void * sysHwInit(void);
 extern void * SysReset(void);
 extern void * SystemInit(void);
 extern void * taskActivate(void);
@@ -115,6 +119,8 @@ extern void * timerInit(void);
 extern void * timerLibInit(void);
 extern void * timerListDoing(void);
 extern void * timerModify(void);
+extern void * timerQAdd(void);
+extern void * timerQWaitAdjust(void);
 extern void * timer_add_test(void);
 extern void * tolower(void);
 extern void * tstc(void);
@@ -185,7 +191,11 @@ static const TsymPara g_symTbl[] =
     {"interrupt_from_handler"        , SYM_TYPE_D, interrupt_from_handler},
     {"isValidNumber"                 , SYM_TYPE_T, isValidNumber},
     {"ledToggle"                     , SYM_TYPE_T, ledToggle},
+    {"luosDelay"                     , SYM_TYPE_T, luosDelay},
+    {"luosQDelayAdd"                 , SYM_TYPE_T, luosQDelayAdd},
+    {"luosQDelayRemove"              , SYM_TYPE_T, luosQDelayRemove},
     {"luosStart"                     , SYM_TYPE_T, luosStart},
+    {"luosSysTicksReset"             , SYM_TYPE_T, luosSysTicksReset},
     {"memPartAlloc"                  , SYM_TYPE_T, memPartAlloc},
     {"memPartFree"                   , SYM_TYPE_T, memPartFree},
     {"memPartInit"                   , SYM_TYPE_T, memPartInit},
@@ -195,7 +205,6 @@ static const TsymPara g_symTbl[] =
     {"msgQSend"                      , SYM_TYPE_T, msgQSend},
     {"msg_loop_cnt"                  , SYM_TYPE_D, msg_loop_cnt},
     {"nsec_freq"                     , SYM_TYPE_D, nsec_freq},
-    {"numTickQWork"                  , SYM_TYPE_D, numTickQWork},
     {"osMemAlloc"                    , SYM_TYPE_T, osMemAlloc},
     {"osMemFree"                     , SYM_TYPE_T, osMemFree},
     {"putc"                          , SYM_TYPE_T, putc},
@@ -222,12 +231,15 @@ static const TsymPara g_symTbl[] =
     {"semQInit"                      , SYM_TYPE_T, semQInit},
     {"semTake"                       , SYM_TYPE_T, semTake},
     {"semTypeInit"                   , SYM_TYPE_T, semTypeInit},
+    {"shellLibInit"                  , SYM_TYPE_T, shellLibInit},
+    {"shllTcbGet"                    , SYM_TYPE_T, shllTcbGet},
     {"sprintf"                       , SYM_TYPE_T, sprintf},
     {"strStrip"                      , SYM_TYPE_T, strStrip},
     {"strToInt"                      , SYM_TYPE_T, strToInt},
     {"sysClkRateGet"                 , SYM_TYPE_T, sysClkRateGet},
     {"sysClkRateSet"                 , SYM_TYPE_T, sysClkRateSet},
     {"sysClkTickGet"                 , SYM_TYPE_T, sysClkTickGet},
+    {"sysHwInit"                     , SYM_TYPE_T, sysHwInit},
     {"taskActivate"                  , SYM_TYPE_T, taskActivate},
     {"taskCreate"                    , SYM_TYPE_T, taskCreate},
     {"taskDelay"                     , SYM_TYPE_T, taskDelay},
@@ -248,13 +260,14 @@ static const TsymPara g_symTbl[] =
     {"tick64Get"                     , SYM_TYPE_T, tick64Get},
     {"tickAnnounce"                  , SYM_TYPE_T, tickAnnounce},
     {"tickQWorkDoing"                , SYM_TYPE_T, tickQWorkDoing},
-    {"tickQWorkRdIdx"                , SYM_TYPE_D, tickQWorkRdIdx},
-    {"tickQworkWrIdx"                , SYM_TYPE_D, tickQworkWrIdx},
+
     {"timerAdd"                      , SYM_TYPE_T, timerAdd},
     {"timerInit"                     , SYM_TYPE_T, timerInit},
     {"timerLibInit"                  , SYM_TYPE_T, timerLibInit},
     {"timerListDoing"                , SYM_TYPE_T, timerListDoing},
     {"timerModify"                   , SYM_TYPE_T, timerModify},
+    {"timerQAdd"                     , SYM_TYPE_T, timerQAdd},
+    {"timerQWaitAdjust"              , SYM_TYPE_T, timerQWaitAdjust},
     {"timer_add_test"                , SYM_TYPE_T, timer_add_test},
     {"tmr_keep"                      , SYM_TYPE_D, tmr_keep},
     {"tmr_nsec_dly"                  , SYM_TYPE_D, tmr_nsec_dly},

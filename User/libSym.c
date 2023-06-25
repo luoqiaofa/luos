@@ -217,11 +217,12 @@ static int test_data[10] = {0x12345678, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 TList s_sym_hash_head[SYMBOL_HASH_HAED_SZ];
 TSymHashData s_sym_hashdata[SYMBOL_HASH_HAED_SZ];
 #endif
-
+static int help(void);
 const static TsymPara g_sysSymTbl[] =
 {
     {"bin",             SYM_TYPE_FUNC, (void *)bin},
     {"clear",           SYM_TYPE_FUNC, (void *)clear},
+    {"help",            SYM_TYPE_FUNC, (void *)help},
     {"hex",             SYM_TYPE_FUNC, (void *)hex},
     {"lkup",            SYM_TYPE_FUNC, (void *)symLookup},
     {"md",              SYM_TYPE_FUNC, (void *)md},
@@ -1752,3 +1753,16 @@ static int sys_fun_repeat(int repeat_times, void *funptr, void *arg1, void *arg2
         repeat_times--;
     }
 }
+
+static int help(void)
+{
+    sys_printf("shell command usage help                  - Only global function or variable are valid");
+    sys_printf("function[ [<arg1>][ <arg2>][ ...<arg4>]]  - execue function with args or not");
+    sys_printf("function[([<arg1>][, <arg2>< ...<arg4>)]] - execue function with args or not");
+    sys_printf("variable                                  - show value of specific variable name");
+    sys_printf("variable[<index>]                         - show value of the index of array name");
+    sys_printf("variable = <value>                        - valued the variable to <value>");
+    sys_printf("variable[<index>] = <value>               - valued the index of array to <value>");
+    return 0;
+}
+

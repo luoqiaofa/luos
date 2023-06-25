@@ -63,14 +63,12 @@ SEM_ID semMCreate(int options)
 STATUS semMGive(SEM_ID semId)
 {
     BOOL need_sch;
-    // int level;
     TCB_ID tcb;
 
     if (NULL == semId || semId->semType != SEM_TYPE_MUTEX) {
         return ERROR;
     }
 
-    // level = intLock();
     need_sch = false;
     taskLock();
     tcb = currentTask();
@@ -88,7 +86,6 @@ STATUS semMGive(SEM_ID semId)
                 taskPrioritySet((tid_t)tcb, semId->oriPriority);
             }
         }
-        // intUnlock(level);
     }
     taskUnlock();
     if (need_sch) {
@@ -100,9 +97,7 @@ STATUS semMGive(SEM_ID semId)
 STATUS semMTake(SEM_ID semId, int timeout)
 {
     int rc;
-    // int level;
     int newpri;
-    /* PriInfo_t *pri; */
     TCB_ID tcb;
     LUOS_INFO *osInfo = osCoreInfo();
 
@@ -110,30 +105,25 @@ STATUS semMTake(SEM_ID semId, int timeout)
         return ERROR;
     }
 again:
-    // level = intLock();
     taskLock();
     tcb = currentTask();
     if (NULL == semId->semOwner) {
         semId->oriPriority = tcb->priority;
         semId->semOwner = tcb;
         semId->recurse = 1;
-        // intUnlock(level);
         taskUnlock();
         return OK;
     } else if (tcb == semId->semOwner) {
         if (semId->recurse < SEM_METUX_RECURSE_MAX) {
             semId->recurse++;
-            // intUnlock(level);
             taskUnlock();
             return OK;
         } else {
-            // intUnlock(level);
             taskUnlock();
             return ERROR;
         }
     }
     if (NO_WAIT == timeout) {
-        // intUnlock(level);
         taskUnlock();
         return ERROR;
     }
@@ -150,11 +140,8 @@ again:
     taskPendQuePut(tcb, semId);
     if (semId->semOwner->priority > tcb->priority) {
         newpri = tcb->priority;
-        // intUnlock(level);
         rc = taskPrioritySet((tid_t)(semId->semOwner), newpri);
     } else {
-        // intUnlock(level);
-        // coreTrySchedule();
     }
     taskUnlock();
     coreTrySchedule();

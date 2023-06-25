@@ -90,9 +90,9 @@ STATUS osMemFree(void *ptr)
 #define NUM_TICK_JOBS 256
 typedef STATUS (*tickAnnounce_t)(void);
 static tickAnnounce_t coreTickJobsTbl[NUM_TICK_JOBS];
-volatile int16_t numTickQWork = 0;
-volatile uint8_t tickQworkWrIdx = 0;
-volatile uint8_t tickQWorkRdIdx = 0;
+static volatile int16_t numTickQWork = 0;
+static volatile uint8_t tickQworkWrIdx = 0;
+static volatile uint8_t tickQWorkRdIdx = 0;
 
 #define tickQWorkEmpey() (tickQworkWrIdx == tickQWorkRdIdx)
 void tickAnnounce(void)
