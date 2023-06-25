@@ -147,14 +147,13 @@ static void taskDelDefer(TCB_ID tcb)
 static int taskReturn(void)
 {
     TCB_ID tcb;
-    int level;
     bool needFlush = false;
     SEM_ID semId;
 
     /* semGive */
     tcb = currentTask();
     // printf("task[%s]tid=%p, exit!\n", tcb->name, tcb);
-    level = intLock();
+    taskLock();
     taskReadyRemove(tcb);
     list_add(&tcb->qNodeSched, &osInfo->qPendHead);
     tcb->status = TASK_DEAD;
@@ -162,11 +161,11 @@ static int taskReturn(void)
     if (!list_empty(&semId->qPendHead)) {
         needFlush = true;
     }
-    intUnlock(level);
     taskDelDefer(tcb);
     if (needFlush) {
         semFlush(semId);
     }
+    taskUnlock();
     coreTrySchedule();
     return 0;
 }

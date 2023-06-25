@@ -135,7 +135,7 @@ STATUS coreTickDoing(void)
     osInfo = &__osinfo__;
     osInfo->sysTicksCnt++;
     osInfo->absTicksCnt++;
-    timerListDing();
+    timerListDoing();
 
     tcb = currentTask();
     tcb->runTicksCnt++;
@@ -218,16 +218,15 @@ void coreTrySchedule(void)
     LUOS_TCB *tcb;
     int level;
 
+    if (taskLocked()) {
+        return;
+    }
     level = intLock();
     if (interrupt_from_handler) {
         intUnlock(level);
         return ;
     }
     tcb = currentTask();
-    if (taskLocked()) {
-        intUnlock(level);
-        return;
-    }
 
     if (0 == __osinfo__.intNestedCnt) {
         tickQWorkDoing();

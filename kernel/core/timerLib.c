@@ -158,7 +158,7 @@ void timerQAdd(timerQ_t *q,  timerList_t *tmr)
 }
 
 
-void timerListDing(void)
+void timerListDoing(void)
 {
     TLIST *node;
     timerList_t *tmr, *tdel;

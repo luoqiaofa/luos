@@ -112,7 +112,6 @@ STATUS semTake(SEM_ID id, int timeout)
 STATUS semFlush(SEM_ID id)
 {
     int num = 0;
-    int level;
     TLIST *node, *n2;
     TCB_ID tcb;
 
@@ -125,11 +124,12 @@ STATUS semFlush(SEM_ID id)
             return semOpsTbl[id->semType].psemFlush(id);
         }
     }
+    taskLock();
     if (list_empty(&id->qPendHead)) {
+        taskUnlock();
         return OK;
     }
     n2 = NULL;
-    level = intLock();
     list_for_each(node, &id->qPendHead) {
         num++;
         if (NULL != n2) {
@@ -157,7 +157,7 @@ STATUS semFlush(SEM_ID id)
     if (SEM_TYPE_COUNT == id->semType) {
         id->semCount = num;
     }
-    intUnlock(level);
+    taskUnlock();
     coreTrySchedule();
     return OK;
 }

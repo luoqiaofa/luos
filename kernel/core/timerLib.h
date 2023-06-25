@@ -57,7 +57,7 @@ STATUS timerInit(timerid_t tmrid, TIMER_CB cb, void *arg);
 STATUS timerAdd(timerid_t tmrid, ULONG ticksDefer);
 STATUS timerDelete(timerid_t tmrid);
 STATUS timerModify(timerid_t tmrid, ULONG ticksDefer);
-void timerListDing(void);
+void timerListDoing(void);
 void timerQWaitAdjust(ULONG delta);
 
 #endif /* #ifndef __TIMERLIB_H__ */
