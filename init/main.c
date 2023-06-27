@@ -63,7 +63,7 @@ static void *taskOneshort(void *arg)
 }
 
 LOCAL timerList_t timerL;
-int tmr_keep = 1;
+int dbg_print = 1;
 uint32_t tmr_nsec_dly = 1;
 
 static int tmr_loop = 0;
@@ -72,11 +72,11 @@ LOCAL int timer_expire(void *arg)
 {
     cputime_t expires;
 
-    if (tmr_keep & 0x02) {
+    if (dbg_print & BIT(1)) {
         Printf("[%s]Enter..., loop=%d\n", __func__, tmr_loop++);
     }
 
-    if (tmr_keep) {
+    if (dbg_print & BIT(0)) {
         expires = tmr_nsec_dly * sysClkRateGet();
         timerModify((timerid_t)&timerL, expires);
     }
@@ -106,9 +106,11 @@ static void *taskMsgRx(void *arg)
         rc = msgQReceive(msgQId, buf, maxNBytes, /* WAIT_FOREVER */sysClkRateGet());
         if (rc > 0) {
             buf[rc] = '\0';
-            Printf("[msgQReceive]len=%d, msg: %s\n", rc, buf);
-            usage = cpuUsageGet();
-            Printf("CPU Usage: %u.%03u%%\n", usage/1000, usage%1000);
+            if (dbg_print & BIT(2)) {
+                Printf("[msgQReceive]len=%d, msg: %s\n", rc, buf);
+                usage = cpuUsageGet();
+                Printf("CPU Usage: %u.%03u%%\n", usage/1000, usage%1000);
+            }
         }
     }
     return NULL;
@@ -166,7 +168,7 @@ static void *taskFlagsTake(void *arg)
 extern int usrSymInit(void);
 extern void LED_Init ( void );
 extern void ledToggle(void);
-int dbg_print = 0;
+
 static void *usrRoot(void *arg)
 {
     int rc;
@@ -221,7 +223,7 @@ static void *usrRoot(void *arg)
     while(true) {
         cnt++;
         ledToggle();
-        if (dbg_print) {
+        if (dbg_print & BIT(3)) {
 		    Printf("[%s]cnt=%d\n", taskName(taskIdSelf()), cnt);
 		}
         semGive(semId);
@@ -246,7 +248,7 @@ int main (int argc, char *argv[])
 
 int cpu_sizeof(void)
 {
-    printf(
+    Printf(
             "sizeof(char)      =%u\n"
             "sizeof(short)     =%u\n"
             "sizeof(int)       =%u\n"
@@ -266,7 +268,7 @@ int cpu_sizeof(void)
             sizeof(UINT),
             sizeof(ULONG)
           );
-    printf(
+    Printf(
             "sizeof(char *)    =%d\n"
             "sizeof(short *)   =%d\n"
             "sizeof(int *)     =%d\n"
@@ -283,6 +285,6 @@ int cpu_sizeof(void)
             (int)sizeof(void *)
           );
 
-    printf("sizeof(\"abcd\")    =%u\n",(unsigned int)sizeof("abcd"));
+    Printf("sizeof(\"abcd\")    =%u\n",(unsigned int)sizeof("abcd"));
     return 0;
 }				/* ----------  end of function main  ---------- */

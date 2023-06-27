@@ -137,7 +137,7 @@
 
 
 #ifndef sys_printf
-#define sys_printf(fmt, args...) printf(fmt " \n", ## arg)
+#define sys_printf(fmt, args...) Printf(fmt " \n", ## arg)
 #endif
 #define ln_print(fmt, arg...) sys_printf("[%s]: " fmt "\n", __func__, ## arg)
 

@@ -7,7 +7,6 @@ extern int dbg_print[];
 extern int interrupt_from_handler[];
 extern int msg_loop_cnt[];
 extern int nsec_freq[];
-extern int tmr_keep[];
 extern int tmr_nsec_dly[];
 extern void * BSP_CPU_ClkFreq(void);
 extern void * cli_readline(void);
@@ -260,7 +259,6 @@ static const TsymPara g_symTbl[] =
     {"tick64Get"                     , SYM_TYPE_T, tick64Get},
     {"tickAnnounce"                  , SYM_TYPE_T, tickAnnounce},
     {"tickQWorkDoing"                , SYM_TYPE_T, tickQWorkDoing},
-
     {"timerAdd"                      , SYM_TYPE_T, timerAdd},
     {"timerInit"                     , SYM_TYPE_T, timerInit},
     {"timerLibInit"                  , SYM_TYPE_T, timerLibInit},
@@ -269,7 +267,6 @@ static const TsymPara g_symTbl[] =
     {"timerQAdd"                     , SYM_TYPE_T, timerQAdd},
     {"timerQWaitAdjust"              , SYM_TYPE_T, timerQWaitAdjust},
     {"timer_add_test"                , SYM_TYPE_T, timer_add_test},
-    {"tmr_keep"                      , SYM_TYPE_D, tmr_keep},
     {"tmr_nsec_dly"                  , SYM_TYPE_D, tmr_nsec_dly},
     {"tolower"                       , SYM_TYPE_T, tolower},
     {"tstc"                          , SYM_TYPE_T, tstc},
