@@ -101,22 +101,26 @@ static void *taskMsgRx(void *arg)
     int rc;
     char buf[101];
     UINT maxNBytes = 100;
+    char *tname = NULL;
+
+    char *pbuf = buf;
 
     while (1) {
-        rc = msgQReceive(msgQId, buf, maxNBytes, /* WAIT_FOREVER */sysClkRateGet());
+        rc = msgQReceive(msgQId, &pbuf, maxNBytes, /* WAIT_FOREVER */sysClkRateGet());
         if (rc > 0) {
             buf[rc] = '\0';
             if (dbg_print & BIT(2)) {
-                Printf("[msgQReceive]len=%d, msg: %s\n", rc, buf);
+                tname = taskName(taskIdSelf());
+                Printf("[%s]msgQReceivelen=%d, msg: %s\n", tname, rc, pbuf);
                 usage = cpuUsageGet();
-                Printf("CPU Usage: %u.%03u%%\n", usage/1000, usage%1000);
+                Printf("[%s]CPU Usage: %u.%03u%%\n", tname, usage/1000, usage%1000);
             }
         }
     }
     return NULL;
 }
 
-int nsec_freq = 30;
+int nsec_freq = 2;
 int msg_loop_cnt = 0;
 static void *taskMsgTx(void *arg)
 {
@@ -129,6 +133,47 @@ static void *taskMsgTx(void *arg)
         nBytes = sprintf(buf, "message id=%d", msg_loop_cnt);
         buf[nBytes] = '\0';
         rc = msgQSend(msgQId, buf, nBytes, WAIT_FOREVER, 0);
+        if (OK != rc) {
+            Printf("rc=%d\n", rc);
+        }
+        taskDelay(nsec_freq * sysClkRateGet());
+    }
+    return NULL;
+}
+
+LOCAL MSG_Q_ID msgQId2 = NULL;
+static void *taskMsgRx2(void *arg)
+{
+    int rc;
+    char *buf;
+    UINT maxNBytes = 100;
+
+    while (1) {
+        rc = msgQReceive(msgQId2, &buf, maxNBytes, WAIT_FOREVER);
+        if (rc > 0) {
+            buf[rc] = '\0';
+            if (dbg_print & BIT(2)) {
+                Printf("[%s]msgQReceivelen=%d, msg: %s\n", taskName(taskIdSelf()), rc, buf);
+            }
+        }
+    }
+    return NULL;
+}
+
+LOCAL char msgArray[3][128];
+static void *taskMsgTx2(void *arg)
+{
+    int rc;
+    char *buf;
+    UINT nBytes;
+    int loop = 0;
+
+    while (1) {
+        buf = msgArray[loop % ARRAY_SIZE(msgArray)];
+        nBytes = sprintf(buf, "message id=%d", loop + 1);
+        loop++;
+        buf[nBytes] = '\0';
+        rc = msgQSend(msgQId2, buf, nBytes, WAIT_FOREVER, 0);
         if (OK != rc) {
             Printf("rc=%d\n", rc);
         }
@@ -178,6 +223,10 @@ static void *usrRoot(void *arg)
     char tname[20] = "tOne";
 
     rc = sysHwInit();
+    if (OK != rc) {
+        Printf("sysHwInit failed, rc=%d\n", rc);
+        return NULL;
+    }
 	version();
     // cpu_sizeof();
 
@@ -188,13 +237,6 @@ static void *usrRoot(void *arg)
         return NULL;
     }
 
-    msgQId = msgQCreate(10, 128, 0);
-
-    if (OK != rc) {
-        Printf("taskLibInit failed\n");
-        return NULL;
-    }
-
     timer_add_test();
 
     sysClkRateSet(CONFIG_HZ);
@@ -202,8 +244,18 @@ static void *usrRoot(void *arg)
     flagInit(&semFlags, 0, 0);
 
     taskSpawn("tStat", CONFIG_NUM_PRIORITY-4, 0, 512,  taskStatus, NULL);
-    taskSpawn("tMsgTx", 12, 0, 2048,  taskMsgTx, NULL);
-    taskSpawn("tMsgRx", 11, 0, 2048,  taskMsgRx, NULL);
+
+    msgQId = msgQCreate(3, 128, 0);
+    if (NULL != msgQId) {
+        taskSpawn("tMsgTx", 12, 0, 2048,  taskMsgTx, NULL);
+        taskSpawn("tMsgRx", 11, 0, 2048,  taskMsgRx, NULL);
+    }
+
+    msgQId2 = msgQCreate(3, 128, MSG_Q_ZERO_COPY);
+    if (NULL != msgQId2) {
+        taskSpawn("tMsgTx2", 12, 0, 1024,  taskMsgTx2, NULL);
+        taskSpawn("tMsgRx2", 11, 0, 1024,  taskMsgRx2, NULL);
+    }
 
     taskSpawn("tFlgGive", 17, 0, 1024,  taskFlagsGive, NULL);
     taskSpawn("tFlgTake", 18, 0, 1024,  taskFlagsTake, NULL);

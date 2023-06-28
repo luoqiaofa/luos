@@ -6,7 +6,7 @@ extern int Printf(const char *fmt, ...);
 int version(void)
 {
     Printf("\n############################################\n");
-    Printf("# RTOS: luos, version: 2023-06-27 09:24:48 #\n");
+    Printf("# RTOS: luos, version: 2023-06-28 18:10:11 #\n");
     Printf("############################################\n\n");
 
     return 0;

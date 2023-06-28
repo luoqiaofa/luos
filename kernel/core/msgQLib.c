@@ -26,64 +26,89 @@ STATUS msgQLibInit(void)
     return OK;
 }
 
-static STATUS msgQInit(MSG_Q_ID msgid, int numMsg, int maxDataLen, int options)
+static STATUS msgQInit(MSG_Q_ID msgQId, int numMsg, int maxDataLen, int options)
 {
     msgQNode_t *msg;
     int idx;
     size_t sz, one;
     void *p;
+    int  semOpts;
 
-    if (NULL == msgid || numMsg < 0 || maxDataLen < 0 || options < 0) {
+    if (NULL == msgQId || numMsg < 0 || maxDataLen < 0 || options < 0) {
         return ERROR;
     }
-    memset(msgid, 0, sizeof(*msgid));
+    switch(options & MSG_Q_TYPE_MASK) {
+        case MSG_Q_FIFO:
+            semOpts = SEM_Q_FIFO;
+            break;
+        case MSG_Q_PRIORITY:
+            semOpts = SEM_Q_PRIORITY;
+            break;
+        default:
+            return ERROR;
+            break;
+    }
+    memset(msgQId, 0, sizeof(*msgQId));
+    msgQId->options = options;
+
     one = STACK_ROUND_UP(sizeof(*msg) + maxDataLen);
+    if (MSG_Q_ZERO_COPY & options) {
+        one = STACK_ROUND_UP(sizeof(*msg) + sizeof(void *));
+    }
+    
     sz = numMsg * one;
-    msgid->memBase = osMemAlloc(sz);
-    if (NULL == msgid->memBase) {
+    msgQId->memBase = osMemAlloc(sz);
+    if (NULL == msgQId->memBase) {
         return ERROR;
     }
-    p = msgid->memBase;
-    INIT_LIST_HEAD(&msgid->msgQ);
-    INIT_LIST_HEAD(&msgid->qFree);
+    p = msgQId->memBase;
+    INIT_LIST_HEAD(&msgQId->msgQ);
+    INIT_LIST_HEAD(&msgQId->qFree);
     for (idx = 0; idx < numMsg; idx++) {
         msg = (msgQNode_t *)p;
         msg->length = one - sizeof(*msg);
-        list_add_tail(&msg->qNode, &msgid->qFree);
+        if (MSG_Q_ZERO_COPY & msgQId->options) {
+            msg->length = maxDataLen;
+        }
+        list_add_tail(&msg->qNode, &msgQId->qFree);
         p = p + one;
     }
 
-    msgid->numMsgs   = numMsg;
-    msgid->numFree   = numMsg;
-    msgid->maxMsgLen = one - sizeof(*msg);
-    semCInit(&msgid->semMsgRx, options, 0);
-    semCInit(&msgid->semMsgTx, options, numMsg);
+    msgQId->numMsgs   = numMsg;
+    msgQId->numFree   = numMsg;
+    msgQId->maxMsgLen = one - sizeof(*msg);
+    if (MSG_Q_ZERO_COPY & msgQId->options) {
+        msgQId->maxMsgLen = maxDataLen;
+    }
+    semCInit(&msgQId->semMsgRx, semOpts, 0);
+    semCInit(&msgQId->semMsgTx, semOpts, numMsg);
     return OK;
 }
 
 MSG_Q_ID msgQCreate(int numMsg, int maxMsgDataLen, int options)
 {
     int rc;
-    MSG_Q_ID msgid;
+    MSG_Q_ID msgQId;
 
     if (numMsg < 0 || maxMsgDataLen < 0 || options < 0) {
         return NULL;
     }
-    msgid = osMemAlloc(sizeof(*msgid));
-    if (NULL == msgid) {
+    msgQId = osMemAlloc(sizeof(*msgQId));
+    if (NULL == msgQId) {
     }
-    rc = msgQInit(msgid, numMsg, maxMsgDataLen, options);
+    rc = msgQInit(msgQId, numMsg, maxMsgDataLen, options);
     if (OK == rc) {
-        return msgid;
+        return msgQId;
     }
-    osMemFree(msgid);
+    osMemFree(msgQId);
     return NULL;
 }
 
 STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priority)
 {
     int rc;
-    char *p;
+    void *p;
+    void **pp;
     msgQNode_t *msg;
 
     if (NULL == msgQId || NULL == buf || 0 == nBytes || timeout < WAIT_FOREVER) {
@@ -101,14 +126,16 @@ STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priori
     while (NULL == msg) {;}
     msgQId->numFree--;
     list_del_init(&msg->qNode);
-    p = (char *)msg;
+    p = (void *)msg;
     p += sizeof(*msg);
 
-    if (msgQId->maxMsgLen < nBytes) {
-        nBytes = msgQId->maxMsgLen;
-    }
     msg->length = nBytes;
-    memcpy(p, buf, nBytes);
+    if (MSG_Q_ZERO_COPY & msgQId->options) {
+        pp = (void **)p;
+        *pp = buf;
+    } else {
+        memcpy(p, buf, nBytes);
+    }
     if (priority) {
         list_add(&msg->qNode, &msgQId->msgQ);
     } else {
@@ -120,14 +147,21 @@ STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priori
     return rc;
 }
 
-int msgQReceive(MSG_Q_ID msgQId, char *buf, UINT maxNBytes, int timeout)
+int msgQReceive(MSG_Q_ID msgQId, char **pbuf, UINT maxNBytes, int timeout)
 {
     int rc;
-    char *p;
+    void *p;
+    void **pp;
     msgQNode_t *msg;
 
-    if (NULL == msgQId || NULL == buf || 0 == maxNBytes || timeout < WAIT_FOREVER) {
+    if (NULL == msgQId || NULL == pbuf || 0 == maxNBytes || timeout < WAIT_FOREVER) {
         return ERROR;
+    }
+    if (!(MSG_Q_ZERO_COPY & msgQId->options)) {
+        p = *pbuf;
+        if (NULL == p) {
+            return ERROR;
+        }
     }
     rc = semTake(&msgQId->semMsgRx, timeout);
     if (OK != rc) {
@@ -146,7 +180,12 @@ int msgQReceive(MSG_Q_ID msgQId, char *buf, UINT maxNBytes, int timeout)
     if (maxNBytes > msg->length) {
         maxNBytes = msg->length;
     }
-    memcpy(buf, p, maxNBytes);
+    if (MSG_Q_ZERO_COPY & msgQId->options) {
+        pp = (void **)p;
+        *pbuf = *pp;
+    } else {
+        memcpy(*pbuf, p, maxNBytes);
+    }
 
     msgQId->numFree++;
     list_add_tail(&msg->qNode, &msgQId->qFree);

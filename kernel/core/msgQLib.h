@@ -25,8 +25,15 @@ typedef struct msgQNode {
     int     length;
 } msgQNode_t;
 
+/* for msgQ options */
+#define MSG_Q_TYPE_MASK     0x03
+#define MSG_Q_FIFO          0x00
+#define MSG_Q_PRIORITY      0x01
+#define MSG_Q_ZERO_COPY     0x04 /* support zero copy data for msgQ */
+
 typedef struct msgQ {
     int         numMsgs;
+    int         options;
     int         maxMsgLen;   /* max data length for per msg */
     void *      memBase;
     TLIST       qFree;       /* free msgQNode */
@@ -40,7 +47,7 @@ typedef msgQ_t * MSG_Q_ID;
 
 STATUS msgQLibInit(void);
 MSG_Q_ID msgQCreate(int numMsg, int maxMsgDataLen, int options);
-int msgQReceive(MSG_Q_ID msgQId, char *buf, UINT maxNBytes, int timeout);
+int msgQReceive(MSG_Q_ID msgQId, char **pbuf, UINT maxNBytes, int timeout);
 STATUS msgQSend(MSG_Q_ID msgQId, char *buf, UINT nBytes, int timeout, int priority);
 STATUS msgQDelete(MSG_Q_ID msgQId);
 
