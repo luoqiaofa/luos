@@ -99,7 +99,6 @@ STATUS semMTake(SEM_ID semId, int timeout)
     int rc;
     int newpri;
     TCB_ID tcb;
-    LUOS_INFO *osInfo = osCoreInfo();
 
     if (timeout < WAIT_FOREVER) {
         return ERROR;
@@ -135,7 +134,7 @@ again:
         luosDelay(tcb, timeout);
         tcb->status |= TASK_DELAY;
     } else {
-        list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
+        luosQPendAdd(tcb, true);
     }
     taskPendQuePut(tcb, semId);
     if (semId->semOwner->priority > tcb->priority) {

@@ -111,7 +111,6 @@ STATUS semBGive(SEM_ID semId)
 STATUS semBTake(SEM_ID semId, int timeout)
 {
     TCB_ID tcb;
-    LUOS_INFO *osInfo = osCoreInfo();
 
     if (NULL == semId || SEM_TYPE_BINARY != semId->semType) {
         return ERROR;
@@ -142,7 +141,7 @@ again:
         luosDelay(tcb, timeout);
         tcb->status |= TASK_DELAY;
     } else {
-        list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
+        luosQPendAdd(tcb, true);
     }
     taskPendQuePut(tcb, semId);
     taskUnlock();

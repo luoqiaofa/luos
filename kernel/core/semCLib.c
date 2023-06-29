@@ -88,7 +88,6 @@ STATUS semCTake(SEM_ID semId, int timeout)
 {
     // PriInfo_t *pri;
     TCB_ID tcb;
-    LUOS_INFO *osInfo = osCoreInfo();
 
     if (NULL == semId || semId->semType != SEM_TYPE_COUNT) {
         return ERROR;
@@ -115,7 +114,7 @@ again:
         luosDelay(tcb, timeout);
         tcb->status |= TASK_DELAY;
     } else {
-        list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
+        luosQPendAdd(tcb, true);
     }
     tcb->semIdPended = semId;
     taskPendQuePut(tcb, semId);
@@ -130,8 +129,9 @@ again:
 STATUS semCFlush(SEM_ID id)
 {
     int num = 0;
-    TLIST *node, *n2;
+    TLIST *node;
     TCB_ID tcb;
+    int oldStatus;
 
     if (NULL == id || SEM_TYPE_COUNT != id->semType) {
         return ERROR;
@@ -140,31 +140,41 @@ STATUS semCFlush(SEM_ID id)
     if (list_empty(&id->qPendHead)) {
         return OK;
     }
-    n2 = NULL;
+    tcb = NULL;
     taskLock();
     list_for_each(node, &id->qPendHead) {
         num++;
-        if (NULL != n2) {
-            list_del(n2);
-            tcb = list_entry(n2, LUOS_TCB, qNodePend);
-            tcb->status &= ~(TASK_PEND | TASK_DELAY);
-            if (TASK_READY == tcb->status) {
-                list_del_init(&tcb->qNodeSched);
-                taskReadyAdd(tcb, true);
+        if (NULL != tcb) {
+            list_del(&tcb->qNodePend);
+            if (oldStatus & TASK_DELAY) {
+                luosQDelayRemove(tcb);
+            } else {
+                luosQPendRemove(tcb);
             }
-            n2 = NULL;
+            if (TASK_READY == tcb->status) {
+                taskReadyAdd(tcb, true);
+            } else {
+                luosQPendAdd(tcb, true);
+            }
+            tcb = NULL;
         }
-        n2 = node;
-    }
-    if (NULL != n2) {
-        list_del(n2);
-        tcb = list_entry(n2, LUOS_TCB, qNodePend);
+        tcb = list_entry(node, LUOS_TCB, qNodePend);
+        oldStatus = tcb->status;
         tcb->status &= ~(TASK_PEND | TASK_DELAY);
-        if (TASK_READY == tcb->status) {
-            list_del(&tcb->qNodeSched);
-            taskReadyAdd(tcb, true);
+    }
+    if (NULL != tcb) {
+        list_del(&tcb->qNodePend);
+        if (oldStatus & TASK_DELAY) {
+            luosQDelayRemove(tcb);
+        } else {
+            luosQPendRemove(tcb);
         }
-        n2 = NULL;
+        if (TASK_READY == tcb->status) {
+            taskReadyAdd(tcb, true);
+        } else {
+            luosQPendAdd(tcb, true);
+        }
+        tcb = NULL;
     }
     id->semCount = num;
     taskUnlock();

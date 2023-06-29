@@ -192,6 +192,23 @@ static inline TCB_ID highReadyTaskGet(void)
     return tcb;
 }
 
+static inline void luosQPendAdd(TCB_ID tcb, BOOL isAddTail)
+{
+    __osinfo__.numPended++;
+    if (!isAddTail) {
+        list_add(&tcb->qNodeSched, &__osinfo__.qPendHead);
+    } else {
+        list_add_tail(&tcb->qNodeSched, &__osinfo__.qPendHead);
+    }
+}
+
+static inline void luosQPendRemove(TCB_ID tcb)
+{
+    __osinfo__.numPended--;
+    list_del_init(&tcb->qNodeSched);
+}
+
+
 static inline void tcbActivate(TCB_ID tcb)
 {
     if (TASK_READY == tcb->status) {
@@ -199,10 +216,11 @@ static inline void tcbActivate(TCB_ID tcb)
     }
     tcb->status &= ~TASK_SUSPEND;
     if (TASK_READY == tcb->status) {
-        list_del_init(&tcb->qNodeSched);
+        luosQPendRemove(tcb);
         taskReadyAdd(tcb, true);
     }
 }
+
 
 extern STATUS coreLibInit(void);
 extern void * osMemAlloc(size_t nbytes);

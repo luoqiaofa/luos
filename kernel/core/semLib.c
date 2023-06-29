@@ -112,8 +112,9 @@ STATUS semTake(SEM_ID id, int timeout)
 STATUS semFlush(SEM_ID id)
 {
     int num = 0;
-    TLIST *node, *n2;
-    TCB_ID tcb;
+    TLIST *node;
+    UINT oldStatus;
+    TCB_ID tcb = NULL;
 
     if (NULL == id || id->semType >= SEM_TYPE_MAX) {
         return ERROR;
@@ -129,30 +130,40 @@ STATUS semFlush(SEM_ID id)
         taskUnlock();
         return OK;
     }
-    n2 = NULL;
+    tcb = NULL;
     list_for_each(node, &id->qPendHead) {
         num++;
-        if (NULL != n2) {
-            list_del(n2);
-            tcb = list_entry(n2, LUOS_TCB, qNodePend);
-            tcb->status &= ~(TASK_PEND | TASK_DELAY);
-            if (TASK_READY == tcb->status) {
-                list_del_init(&tcb->qNodeSched);
-                taskReadyAdd(tcb, true);
+        if (NULL != tcb) {
+            list_del_init(&tcb->qNodePend);
+            if (oldStatus & TASK_DELAY) {
+                luosQDelayRemove(tcb);
+            } else {
+                luosQPendRemove(tcb);
             }
-            n2 = NULL;
+            if (TASK_READY == tcb->status) {
+                taskReadyAdd(tcb, true);
+            } else {
+                luosQPendAdd(tcb, true);
+            }
+            tcb = NULL;
         }
-        n2 = node;
-    }
-    if (NULL != n2) {
-        list_del(n2);
-        tcb = list_entry(n2, LUOS_TCB, qNodePend);
+        tcb = list_entry(node, LUOS_TCB, qNodePend);
+        oldStatus = tcb->status;
         tcb->status &= ~(TASK_PEND | TASK_DELAY);
-        if (TASK_READY == tcb->status) {
-            list_del_init(&tcb->qNodeSched);
-            taskReadyAdd(tcb, true);
+    }
+    if (NULL != tcb) {
+        list_del_init(&tcb->qNodePend);
+        if (oldStatus & TASK_DELAY) {
+            luosQDelayRemove(tcb);
+        } else {
+            luosQPendRemove(tcb);
         }
-        n2 = NULL;
+        if (TASK_READY == tcb->status) {
+            taskReadyAdd(tcb, true);
+        } else {
+            luosQPendAdd(tcb, true);
+        }
+        tcb = NULL;
     }
     if (SEM_TYPE_COUNT == id->semType) {
         id->semCount = num;

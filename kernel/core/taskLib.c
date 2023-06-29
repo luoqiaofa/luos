@@ -109,7 +109,7 @@ static int taskDelTimer(void *arg)
     semId = &tcb->semJoinExit;
     if (list_empty(&semId->qPendHead)) {
         level = intLock();
-        list_del_init(&tcb->qNodeSched);
+        luosQPendRemove(tcb);
         intUnlock(level);
         Printf("task %s will be really deleted\n", tcb->name);
         #ifdef CONFIG_STACK_GROWSUP
@@ -155,7 +155,7 @@ static int taskReturn(void)
     // printf("task[%s]tid=%p, exit!\n", tcb->name, tcb);
     taskLock();
     taskReadyRemove(tcb);
-    list_add(&tcb->qNodeSched, &osInfo->qPendHead);
+    luosQPendAdd(tcb, true);
     tcb->status = TASK_DEAD;
     semId = &tcb->semJoinExit;
     if (!list_empty(&semId->qPendHead)) {
@@ -225,7 +225,7 @@ STATUS taskInit(LUOS_TCB *tcb, char *name, int priority, int options,
 
     taskListInit(tcb);
     level = intLock();
-    list_add_tail(&tcb->qNodeSched, &osInfo->qPendHead);
+    luosQPendAdd(tcb, true);
     intUnlock(level);
 
     cpuStackInit(tcb, taskReturn);
@@ -338,7 +338,7 @@ STATUS taskSuspend(tid_t tid)
         if (NULL == tcb->semIdOwner) {
             taskReadyRemove(tcb);
             tcb->status |= TASK_SUSPEND;
-            list_add(&tcb->qNodeSched, &osInfo->qPendHead);
+            luosQPendAdd(tcb, true);
             intUnlock(level);
             coreTrySchedule();
             return OK;
@@ -364,7 +364,7 @@ STATUS taskResume(tid_t tid)
     level = intLock();
     tcb->status &= ~(TASK_SUSPEND/* | TASK_DELAY*/);
     if (TASK_READY == tcb->status) {
-        list_del_init(&tcb->qNodeSched);
+        luosQPendRemove(tcb);
         taskReadyAdd(tcb, true);
         intUnlock(level);
         coreTrySchedule();
@@ -515,20 +515,16 @@ STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
                 continue;
             }
             if (SEM_TYPE_FLAGS != semId->semType) {
-                list_del_init(&tcb1->qNodePend);
-                list_del_init(&tcb1->qNodeSched);
-                tcb1->semIdPended = NULL;
-                taskReadyAdd(tcb1, false);
-                tcb1->status = TASK_READY;
-                if (tcb1->priority < tcb->priority) {
-                    needSched = true;
-                    return OK;
-                }
-                return ERROR;
+                tdel = tcb1;
+                break;
             } else {
                 if (NULL != tdel) {
-                    list_del_init(&tcb1->qNodePend);
-                    list_del_init(&tdel->qNodeSched);
+                    list_del_init(&tdel->qNodePend);
+                    if (tdel->status & TASK_DELAY) {
+                        luosQDelayRemove(tdel);
+                    } else {
+                        luosQPendRemove(tdel);
+                    }
                     tdel->semIdPended = NULL;
                     taskReadyAdd(tdel, false);
                     tdel->status = TASK_READY;
@@ -570,10 +566,14 @@ STATUS taskPendQueGet(TCB_ID tcb, SEM_ID semId)
             }
         }
         if (NULL != tdel) {
-            list_del_init(&tcb1->qNodePend);
-            list_del_init(&tcb1->qNodeSched);
-            tcb1->semIdPended = NULL;
-            taskReadyAdd(tcb1, false);
+            list_del_init(&tdel->qNodePend);
+            if (tdel->status & TASK_DELAY) {
+                luosQDelayRemove(tdel);
+            } else {
+                luosQPendRemove(tdel);
+            }
+            tdel->semIdPended = NULL;
+            taskReadyAdd(tdel, false);
             tdel->status = TASK_READY;
             if (tdel->priority < tcb->priority) {
                 needSched = true;

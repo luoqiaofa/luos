@@ -2,17 +2,17 @@
  * ===========================================================================
  * 版权所有 (C)2010, MrLuo股份有限公司
  * 文件名称   : flagLib.c
- * 内容摘要   : 
- * 其它说明   : 
- * 版本       : 
+ * 内容摘要   :
+ * 其它说明   :
+ * 版本       :
  * 作    者   : Luoqiaofa (Luo), luoqiaofa@163.com
  * 创建时间   : 2023-06-19 01:35:55 PM
- * 
+ *
  * 修改记录1:
  *    修改日期: 2023-06-19
- *    版 本 号: 
+ *    版 本 号:
  *    修 改 人: Luoqiaofa (Luo), luoqiaofa@163.com
- *    修改内容: 
+ *    修改内容:
  * ===========================================================================
  */
 
@@ -90,8 +90,8 @@ STATUS flagTake(SEM_ID semId, UINT flags, int flgOptions, int timeout)
     UINT updFlags = 0;
     // PriInfo_t *pri;
     TCB_ID tcb;
-    LUOS_INFO *osInfo = osCoreInfo();
-    BOOL willPended = false; 
+    BOOL willPended = false;
+
     if (NULL == semId || semId->semType != SEM_TYPE_FLAGS) {
         return ERROR;
     }
@@ -99,47 +99,47 @@ STATUS flagTake(SEM_ID semId, UINT flags, int flgOptions, int timeout)
         return ERROR;
     }
 again:
-    willPended = false; 
+    willPended = false;
     taskLock();
     tcb = currentTask();
     switch (tcb->flgOptions & FLAG_OPT_SETCLR_MSK) {
         case FLAG_OPT_SET_ALL:
             newflags = semId->semEvents & flags;
             if (newflags != flags) {
-                willPended = true; 
+                willPended = true;
             } else {
                 if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-                    updFlags = (semId->semEvents & ~flags); 
+                    updFlags = (semId->semEvents & ~flags);
                 }
             }
             break;
         case FLAG_OPT_CLR_ALL:
             newflags = semId->semEvents & flags;
             if (0 != newflags) {
-                willPended = true; 
+                willPended = true;
             } else {
                 if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-                    updFlags = (semId->semEvents | flags); 
+                    updFlags = (semId->semEvents | flags);
                 }
             }
             break;
         case FLAG_OPT_SET_ANY:
             newflags = semId->semEvents & flags;
             if (0 == newflags) {
-                willPended = true; 
+                willPended = true;
             } else {
                 if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-                    updFlags = (semId->semEvents & ~flags); 
+                    updFlags = (semId->semEvents & ~flags);
                 }
             }
             break;
         case FLAG_OPT_CLR_ANY:
             newflags = semId->semEvents & flags;
             if (newflags == flags) {
-                willPended = true; 
+                willPended = true;
             } else {
                 if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-                    updFlags = (semId->semEvents | flags); 
+                    updFlags = (semId->semEvents | flags);
                 }
             }
             break;
@@ -168,7 +168,7 @@ again:
         luosDelay(tcb, timeout);
         tcb->status |= TASK_DELAY;
     } else {
-        list_add_tail(&tcb->qNodeSched, &(osInfo->qPendHead));
+        luosQPendAdd(tcb, true);
     }
     tcb->semIdPended = semId;
     taskPendQuePut(tcb, semId);
@@ -183,8 +183,9 @@ again:
 STATUS flagFlush(SEM_ID id)
 {
     int num = 0;
-    TLIST *node, *n2;
+    TLIST *node;
     TCB_ID tcb;
+    UINT oldStatus;
 
     if (NULL == id || SEM_TYPE_FLAGS != id->semType) {
         return ERROR;
@@ -193,31 +194,41 @@ STATUS flagFlush(SEM_ID id)
     if (list_empty(&id->qPendHead)) {
         return OK;
     }
-    n2 = NULL;
+    tcb = NULL;
     taskLock();
     list_for_each(node, &id->qPendHead) {
         num++;
-        if (NULL != n2) {
-            list_del_init(n2);
-            tcb = list_entry(n2, LUOS_TCB, qNodePend);
-            tcb->status = tcb->status & ~(TASK_PEND | TASK_DELAY);
-            if (TASK_READY == tcb->status) {
-                list_del_init(&tcb->qNodeSched);
-                taskReadyAdd(tcb, true);
+        if (NULL != tcb) {
+            list_del_init(&tcb->qNodePend);
+            if (oldStatus & TASK_DELAY) {
+                luosQDelayRemove(tcb);
+            } else {
+                luosQPendRemove(tcb);
             }
-            n2 = NULL;
+            if (TASK_READY == tcb->status) {
+                taskReadyAdd(tcb, true);
+            } else {
+                luosQPendAdd(tcb, true);
+            }
+            tcb = NULL;
         }
-        n2 = node;
-    }
-    if (NULL != n2) {
-        list_del_init(n2);
-        tcb = list_entry(n2, LUOS_TCB, qNodePend);
+        tcb = list_entry(node, LUOS_TCB, qNodePend);
+        oldStatus = tcb->status;
         tcb->status = tcb->status & ~(TASK_PEND | TASK_DELAY);
-        if (TASK_READY == tcb->status) {
-            list_del(&tcb->qNodeSched);
-            taskReadyAdd(tcb, true);
+    }
+    if (NULL != tcb) {
+        list_del_init(&tcb->qNodePend);
+        if (oldStatus & TASK_DELAY) {
+            luosQDelayRemove(tcb);
+        } else {
+            luosQPendRemove(tcb);
         }
-        n2 = NULL;
+        if (TASK_READY == tcb->status) {
+            taskReadyAdd(tcb, true);
+        } else {
+            luosQPendAdd(tcb, true);
+        }
+        tcb = NULL;
     }
     id->semEvents = num;
     taskUnlock();

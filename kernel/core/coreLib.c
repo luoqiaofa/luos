@@ -160,7 +160,7 @@ STATUS coreTickDoing(void)
             if (TASK_READY == tdel->status) {
                 taskReadyAdd(tdel, true);
             } else {
-                list_add_tail(&tdel->qNodeSched, &osInfo->qPendHead);
+                taskReadyAdd(tdel, true);
             }
             tdel = NULL;
         }
@@ -186,7 +186,7 @@ STATUS coreTickDoing(void)
         if (TASK_READY == tdel->status) {
             taskReadyAdd(tdel, true);
         } else {
-            list_add_tail(&tdel->qNodeSched, &osInfo->qPendHead);
+            taskReadyAdd(tdel, true);
         }
         tdel = NULL;
     }
@@ -382,7 +382,7 @@ STATUS i(void)
     log("###############################################################################");
     osMemFree(ptcbs);
     // log("ntick=%u", ntick);
-    return 0;
+    return num;
 }
 
 TCB_ID shllTcbGet(void);
@@ -480,11 +480,11 @@ void luosQDelayAdd(TCB_ID tcb)
     TLIST *node, *prev, *next, *new;
 
     osInfo = &__osinfo__;
+    osInfo->numDelayed++;
     list_for_each(node, &osInfo->qDelayHead) {
         tcb1 = list_entry(node, LUOS_TCB, qNodeSched);
         while (NULL == tcb1) {;/* hang up here */}
         if (tcb->dlyTicks < tcb1->dlyTicks) {
-            osInfo->numDelayed++;
             new = &tcb->qNodeSched;
             next = &tcb1->qNodeSched;
             prev = next->prev;
@@ -492,7 +492,6 @@ void luosQDelayAdd(TCB_ID tcb)
             return ;
         }
     }
-    osInfo->numDelayed++;
     list_add_tail(&tcb->qNodeSched, &osInfo->qDelayHead);
 }
 
@@ -507,6 +506,7 @@ void luosQDelayRemove(TCB_ID tcb)
     osInfo->numDelayed--;
     list_del_init(&tcb->qNodeSched);
 }
+
 
 void luosDelay(TCB_ID tcb, int ticks)
 {
