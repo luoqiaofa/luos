@@ -87,7 +87,7 @@ STATUS flagGive(SEM_ID semId, UINT flags, int flgOptions)
 STATUS flagTake(SEM_ID semId, UINT flags, int flgOptions, int timeout)
 {
     UINT newflags;
-    UINT updFlags = 0;
+    UINT flgConsumed = 0;
     // PriInfo_t *pri;
     TCB_ID tcb;
     BOOL willPended = false;
@@ -108,9 +108,7 @@ again:
             if (newflags != flags) {
                 willPended = true;
             } else {
-                if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-                    updFlags = (semId->semEvents & ~flags);
-                }
+                flgConsumed = (semId->semEvents & ~flags);
             }
             break;
         case FLAG_OPT_CLR_ALL:
@@ -118,9 +116,7 @@ again:
             if (0 != newflags) {
                 willPended = true;
             } else {
-                if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-                    updFlags = (semId->semEvents | flags);
-                }
+                flgConsumed = (semId->semEvents | flags);
             }
             break;
         case FLAG_OPT_SET_ANY:
@@ -128,9 +124,7 @@ again:
             if (0 == newflags) {
                 willPended = true;
             } else {
-                if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-                    updFlags = (semId->semEvents & ~flags);
-                }
+                flgConsumed = (semId->semEvents & ~flags);
             }
             break;
         case FLAG_OPT_CLR_ANY:
@@ -138,9 +132,7 @@ again:
             if (newflags == flags) {
                 willPended = true;
             } else {
-                if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-                    updFlags = (semId->semEvents | flags);
-                }
+                flgConsumed = (semId->semEvents | flags);
             }
             break;
         default:
@@ -150,7 +142,7 @@ again:
     }
     if (!willPended) {
         if (tcb->flgOptions & FLAG_OPT_CONSUME) {
-           semId->semEvents = updFlags;
+           semId->semEvents = flgConsumed;
         }
         taskUnlock();
         return OK;
