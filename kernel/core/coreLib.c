@@ -160,7 +160,7 @@ STATUS coreTickDoing(void)
             if (TASK_READY == tdel->status) {
                 taskReadyAdd(tdel, true);
             } else {
-                taskReadyAdd(tdel, true);
+                luosQPendAdd(tdel, true);
             }
             tdel = NULL;
         }
@@ -186,7 +186,7 @@ STATUS coreTickDoing(void)
         if (TASK_READY == tdel->status) {
             taskReadyAdd(tdel, true);
         } else {
-            taskReadyAdd(tdel, true);
+            luosQPendAdd(tdel, true);
         }
         tdel = NULL;
     }
@@ -226,7 +226,6 @@ void coreTrySchedule(void)
         intUnlock(level);
         return ;
     }
-    tcb = currentTask();
 
     if (0 == __osinfo__.intNestedCnt) {
         tickQWorkDoing();
@@ -389,7 +388,7 @@ TCB_ID shllTcbGet(void);
 static volatile UINT64 cpuIdleCnt = 0;
 static void *taskIdleEntry(void *arg) {
     tid_t tshell;
-    
+
     tshell = (tid_t)shllTcbGet();
     taskActivate(tshell);
     while (true) {
