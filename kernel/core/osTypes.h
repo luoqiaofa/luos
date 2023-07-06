@@ -27,6 +27,7 @@
 #include "autoconf.h"
 #include "linux/list.h"
 #include "asm/types.h"
+#include "os-cpu.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))

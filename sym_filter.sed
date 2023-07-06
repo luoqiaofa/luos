@@ -11,6 +11,9 @@
 /sysSymTblInit/d
 /whiteSpaceSkip/d
 /prefixSymMatched/d
+/shellOutputFdSet/d
+/sysSymTblDeinit/d
+/led_init/d
 /fputc/d
 /fgetc/d
 /vsnprintf/d

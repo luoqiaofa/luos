@@ -47,6 +47,7 @@ TCB_ID shllTcbGet(void)
     return shellTcb;
 }
 
+#if 0
 int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
 	int i;
@@ -59,6 +60,7 @@ int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		return size - 1;
 	return 0;
 }
+#endif
 
 
 int Printf(const char *fmt, ...)

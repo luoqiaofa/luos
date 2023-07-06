@@ -22,7 +22,7 @@
 #include "coreLib.h"
 
 #ifndef CONFIG_TASK_MEM_POOL_SIZE
-#define CONFIG_TASK_MEM_POOL_SIZE (30*1024)
+#define CONFIG_TASK_MEM_POOL_SIZE (100*1024)
 #endif
 
 LUOS_INFO __osinfo__;
@@ -443,9 +443,13 @@ STATUS luosStart(START_RTN appStart, void *appArg, int stackSize)
     tcb = highReadyTaskGet();
     __osinfo__.currentTcb = tcb;
     __osinfo__.highestTcb = tcb;
-    osCoreInfo()->running = true;
     intUnlock(level);
-    cpuTaskContextSwitchTrig(currentTask(), tcb);
+    if (osCoreInfo()->running) {
+        cpuTaskContextSwitchTrig(currentTask(), tcb);
+    } else {
+        osCoreInfo()->running = true;
+        highestTaskStart(); 
+    }
     return 0;
 }
 

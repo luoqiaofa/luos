@@ -220,7 +220,7 @@ static void *usrRoot(void *arg)
     tid_t tid;
     TCB_ID tcb;
     int cnt = 0;
-    char tname[20] = "tOne";
+    char tname[20];
 
     rc = sysHwInit();
     if (OK != rc) {
@@ -244,6 +244,20 @@ static void *usrRoot(void *arg)
     flagInit(&semFlags, 0, 0);
 
     taskSpawn("tStat", CONFIG_NUM_PRIORITY-4, 0, 512,  taskStatus, NULL);
+#if 1
+    memset(tname, 0, sizeof(tname));
+    strcpy(tname, "tOne");
+    for (cnt = 0; cnt < 9; cnt++) {
+        tname[4] = '1' + cnt;
+        tid = taskSpawn(tname,  CONFIG_NUM_PRIORITY-3, 0, 512,  taskOneshort, (void *)(13 - cnt));
+        tcb = (TCB_ID)tid;
+        semIds[cnt] = &(tcb->semJoinExit);
+        if (tid == (tid_t)0) {
+            Printf("task %s created failed\n", tname);
+        }
+    }
+#endif
+    while (1) {;}
 
     msgQId = msgQCreate(3, 128, 0);
     if (NULL != msgQId) {
@@ -259,17 +273,6 @@ static void *usrRoot(void *arg)
 
     taskSpawn("tFlgGive", 17, 0, 1024,  taskFlagsGive, NULL);
     taskSpawn("tFlgTake", 18, 0, 1024,  taskFlagsTake, NULL);
-#if 1
-    for (cnt = 0; cnt < 9; cnt++) {
-        tname[4] = '1' + cnt;
-        tid = taskSpawn(tname,  CONFIG_NUM_PRIORITY-3, 0, 512,  taskOneshort, (void *)(13 - cnt));
-        tcb = (TCB_ID)tid;
-        semIds[cnt] = &(tcb->semJoinExit);
-        if (tid == (tid_t)0) {
-            Printf("task %s created failed\n", tname);
-        }
-    }
-#endif
     cnt = 0;
 	LED_Init();
     while(true) {
@@ -292,7 +295,7 @@ static void *usrRoot(void *arg)
  */
 int main (int argc, char *argv[])
 {
-    luosStart(usrRoot, NULL, 4096);
+    luosStart(usrRoot, NULL, 1024*10);
     while (true) {;}
     return 0;
 }                /* ----------  end of function main  ---------- */

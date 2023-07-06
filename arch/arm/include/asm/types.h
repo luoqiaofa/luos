@@ -1,8 +1,12 @@
 #ifndef _ASM_TYPES_H
 #define _ASM_TYPES_H
 
+#ifdef CONFIG_SOC_IMX6UL
+#include "os-cpu.h"
+#else
 #include "os-cpu-types-v7m3.h"
 #include "os-cpu-v7m3.h"
+#endif
 #include <asm-generic/int-ll64.h>
 
 /*
