@@ -7,6 +7,7 @@
 .type   cpuIntUnlock, %function
 .type   cpuContextSwitch, %function
 .type   highestTaskStart, %function
+ .equ   OS_CPU_ARM_CONTROL_THUMB,          0x20                    @ Set THUMB mode.
 
 .align      4
 /* FIQ中断 */
@@ -37,6 +38,8 @@ cpuContextSwitch:
     stmfd   sp!, {lr} @saved lr
     stmfd   sp!, {r0-r12}
 	mrs     r0, cpsr
+    tst     lr, #1
+    orrne   r0, r0, #OS_CPU_ARM_CONTROL_THUMB
     stmfd   sp!, {r0}
     movw    r2, #:lower16:__osinfo__
     movt    r2, #:upper16:__osinfo__ 
@@ -48,6 +51,7 @@ cpuContextSwitch:
     ldr     sp, [r0, #0x10]
     ldmfd   sp!, {r0}
 	msr     SPSR_cxsf,r0
-    ldmfd   sp!, {r0-r12, lr,pc}^
+    ldmfd   sp!, {r0-r12, lr}
+    ldmfd   sp!, {pc}^
 
 

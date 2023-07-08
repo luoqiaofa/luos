@@ -14,20 +14,20 @@
  * -  Added strsep() which will replace strtok() soon (because strsep() is
  *    reentrant and should be faster). Use only strsep() in new code, please.
  */
-//#include <linux/types.h>
-//#include <linux/string.h>
-//#include "types.h"
-#include "ctype.h"
-#include "string.h"
 
-#ifndef __HAVE_ARCH_STRNICMP
+#include <types.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdio.h>
+
+
 /**
- * strnicmp - Case insensitive, length-limited string comparison
+ * strncasecmp - Case insensitive, length-limited string comparison
  * @s1: One string
  * @s2: The other string
  * @len: the maximum number of characters to compare
  */
-int strnicmp(const char *s1, const char *s2, size_t len)
+int strncasecmp(const char *s1, const char *s2, size_t len)
 {
 	/* Yes, Virginia, it had better be unsigned */
 	unsigned char c1, c2;
@@ -51,7 +51,16 @@ int strnicmp(const char *s1, const char *s2, size_t len)
 	}
 	return (int)c1 - (int)c2;
 }
-#endif
+
+/**
+ * strcasecmp - Case insensitive string comparison
+ * @s1: One string
+ * @s2: The other string
+ */
+int strcasecmp(const char *s1, const char *s2)
+{
+	return strncasecmp(s1, s2, -1U);
+}
 
 char * ___strtok;
 
@@ -90,6 +99,31 @@ char * strncpy(char * dest,const char *src,size_t count)
 		/* nothing */;
 
 	return tmp;
+}
+#endif
+
+#ifndef __HAVE_ARCH_STRLCPY
+/**
+ * strlcpy - Copy a C-string into a sized buffer
+ * @dest: Where to copy the string to
+ * @src: Where to copy the string from
+ * @size: size of destination buffer
+ *
+ * Compatible with *BSD: the result is always a valid
+ * NUL-terminated string that fits in the buffer (unless,
+ * of course, the buffer size is zero). It does not pad
+ * out the result like strncpy() does.
+ */
+size_t strlcpy(char *dest, const char *src, size_t size)
+{
+	size_t ret = strlen(src);
+
+	if (size) {
+		size_t len = (ret >= size) ? size - 1 : ret;
+		memcpy(dest, src, len);
+		dest[len] = '\0';
+	}
+	return ret;
 }
 #endif
 
@@ -206,8 +240,8 @@ char * strrchr(const char * s, int c)
 {
        const char *p = s + strlen(s);
        do {
-           if (*p == (char)c)
-               return (char *)p;
+	   if (*p == (char)c)
+	       return (char *)p;
        } while (--p >= s);
        return NULL;
 }
@@ -244,10 +278,26 @@ size_t strnlen(const char * s, size_t count)
 }
 #endif
 
+// #ifndef __HAVE_ARCH_STRDUP
+#if 0
+char * strdup(const char *s)
+{
+	char *new;
+
+	if ((s == NULL)	||
+	    ((new = malloc (strlen(s) + 1)) == NULL) ) {
+		return NULL;
+	}
+
+	strcpy (new, s);
+	return new;
+}
+#endif
+
 #ifndef __HAVE_ARCH_STRSPN
 /**
  * strspn - Calculate the length of the initial substring of @s which only
- * 	contain letters in @accept
+ *	contain letters in @accept
  * @s: The string to be searched
  * @accept: The string to search for
  */
@@ -348,6 +398,34 @@ char * strsep(char **s, const char *ct)
 }
 #endif
 
+#ifndef __HAVE_ARCH_STRSWAB
+/**
+ * strswab - swap adjacent even and odd bytes in %NUL-terminated string
+ * s: address of the string
+ *
+ * returns the address of the swapped string or NULL on error. If
+ * string length is odd, last byte is untouched.
+ */
+char *strswab(const char *s)
+{
+	char *p, *q;
+
+	if ((NULL == s) || ('\0' == *s)) {
+		return (NULL);
+	}
+
+	for (p=(char *)s, q=p+1; (*p != '\0') && (*q != '\0'); p+=2, q+=2) {
+		char  tmp;
+
+		tmp = *p;
+		*p  = *q;
+		*q  = tmp;
+	}
+
+	return (char *) s;
+}
+#endif
+
 #ifndef __HAVE_ARCH_MEMSET
 /**
  * memset - Fill a region of memory with the given value
@@ -359,10 +437,26 @@ char * strsep(char **s, const char *ct)
  */
 void * memset(void * s,int c,size_t count)
 {
-	char *xs = (char *) s;
+	unsigned long *sl = (unsigned long *) s;
+	unsigned long cl = 0;
+	char *s8;
+	int i;
 
+	/* do it one word at a time (32 bits or 64 bits) while possible */
+	if ( ((ulong)s & (sizeof(*sl) - 1)) == 0) {
+		for (i = 0; i < sizeof(*sl); i++) {
+			cl <<= 8;
+			cl |= c & 0xff;
+		}
+		while (count >= sizeof(*sl)) {
+			*sl++ = cl;
+			count -= sizeof(*sl);
+		}
+	}
+	/* fill 8 bits at a time */
+	s8 = (char *)sl;
 	while (count--)
-		*xs++ = c;
+		*s8++ = c;
 
 	return s;
 }
@@ -381,13 +475,14 @@ void * memset(void * s,int c,size_t count)
  * You should not use this function to access IO space, use memcpy_toio()
  * or memcpy_fromio() instead.
  */
-void bcopy(const void *src, void *dest, size_t count)
+char * bcopy(const char * src, char * dest, int count)
 {
-	char *destTmp = (char *)dest;
-	char *srcTmp = (char *)src;
+	char *tmp = dest;
 
 	while (count--)
-		*destTmp++ = *srcTmp++;
+		*tmp++ = *src++;
+
+	return dest;
 }
 #endif
 
@@ -401,12 +496,26 @@ void bcopy(const void *src, void *dest, size_t count)
  * You should not use this function to access IO space, use memcpy_toio()
  * or memcpy_fromio() instead.
  */
-void * memcpy(void * dest,const void *src,size_t count)
+void * memcpy(void *dest, const void *src, size_t count)
 {
-	char *tmp = (char *) dest, *s = (char *) src;
+	unsigned long *dl = (unsigned long *)dest, *sl = (unsigned long *)src;
+	char *d8, *s8;
 
+	if (src == dest)
+		return dest;
+
+	/* while all data is aligned (common case), copy a word at a time */
+	if ( (((ulong)dest | (ulong)src) & (sizeof(*dl) - 1)) == 0) {
+		while (count >= sizeof(*dl)) {
+			*dl++ = *sl++;
+			count -= sizeof(*dl);
+		}
+	}
+	/* copy the reset one byte at a time */
+	d8 = (char *)dl;
+	s8 = (char *)sl;
 	while (count--)
-		*tmp++ = *s++;
+		*d8++ = *s8++;
 
 	return dest;
 }
@@ -424,6 +533,9 @@ void * memcpy(void * dest,const void *src,size_t count)
 void * memmove(void * dest,const void *src,size_t count)
 {
 	char *tmp, *s;
+
+	if (src == dest)
+		return dest;
 
 	if (dest <= src) {
 		tmp = (char *) dest;
@@ -454,7 +566,7 @@ int memcmp(const void * cs,const void * ct,size_t count)
 	const unsigned char *su1, *su2;
 	int res = 0;
 
-	for( su1 = (const unsigned char *)cs, su2 = (const unsigned char *)ct; 0 < count; ++su1, ++su2, count--)
+	for( su1 = cs, su2 = ct; 0 < count; ++su1, ++su2, count--)
 		if ((res = *su1 - *su2) != 0)
 			break;
 	return res;
@@ -481,7 +593,7 @@ void * memscan(void * addr, int c, size_t size)
 		p++;
 		size--;
 	}
-  	return (void *) p;
+	return (void *) p;
 }
 #endif
 
@@ -521,13 +633,71 @@ char * strstr(const char * s1,const char * s2)
  */
 void *memchr(const void *s, int c, size_t n)
 {
-	const unsigned char *p = (const unsigned char *)s;
+	const unsigned char *p = s;
 	while (n-- != 0) {
-        	if ((unsigned char)c == *p++) {
+		if ((unsigned char)c == *p++) {
 			return (void *)(p-1);
 		}
 	}
 	return NULL;
 }
 
+#endif
+#ifndef __HAVE_ARCH_MEMCHR_INV
+static void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
+{
+	while (bytes) {
+		if (*start != value)
+			return (void *)start;
+		start++;
+		bytes--;
+	}
+	return NULL;
+}
+/**
+ * memchr_inv - Find an unmatching character in an area of memory.
+ * @start: The memory area
+ * @c: Find a character other than c
+ * @bytes: The size of the area.
+ *
+ * returns the address of the first character other than @c, or %NULL
+ * if the whole buffer contains just @c.
+ */
+void *memchr_inv(const void *start, int c, size_t bytes)
+{
+	u8 value = c;
+	u64 value64;
+	unsigned int words, prefix;
+
+	if (bytes <= 16)
+		return check_bytes8(start, value, bytes);
+
+	value64 = value;
+	value64 |= value64 << 8;
+	value64 |= value64 << 16;
+	value64 |= value64 << 32;
+
+	prefix = (unsigned long)start % 8;
+	if (prefix) {
+		u8 *r;
+
+		prefix = 8 - prefix;
+		r = check_bytes8(start, value, prefix);
+		if (r)
+			return r;
+		start += prefix;
+		bytes -= prefix;
+	}
+
+	words = bytes / 8;
+
+	while (words) {
+		if (*(u64 *)start != value64)
+			return check_bytes8(start, value, 8);
+		start += 8;
+		words--;
+	}
+
+	return check_bytes8(start, value, bytes % 8);
+}
 #endif

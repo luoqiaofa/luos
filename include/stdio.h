@@ -3,7 +3,40 @@
 #define _STDIO_H
 
 #include <stdarg.h>
+#include <stdint.h>
 #include "types.h"
+
+typedef unsigned char       uchar;
+typedef unsigned short      ushort;
+typedef unsigned int        uint;
+typedef unsigned long       ulong;
+
+typedef uint8_t __u8;
+typedef uint16_t __u16;
+typedef uint32_t __u32;
+typedef unsigned int uint;
+
+#ifdef CONFIG_PHYS_64BIT
+typedef unsigned long long phys_addr_t;
+typedef unsigned long long phys_size_t;
+#else
+/*  DMA addresses are 32-bits wide */
+typedef unsigned long phys_addr_t;
+typedef unsigned long phys_size_t;
+#endif
+#define USHRT_MAX   ((u16)(~0U))
+#define SHRT_MAX    ((s16)(USHRT_MAX>>1))
+#define SHRT_MIN    ((s16)(-SHRT_MAX - 1))
+#define INT_MAX     ((int)(~0U>>1))
+#define INT_MIN     (-INT_MAX - 1)
+#define UINT_MAX    (~0U)
+#define LONG_MAX    ((long)(~0UL>>1))
+#define LONG_MIN    (-LONG_MAX - 1)
+#define ULONG_MAX   (~0UL)
+#define LLONG_MAX   ((long long)(~0ULL>>1))
+#define LLONG_MIN   (-LLONG_MAX - 1)
+#define ULLONG_MAX  (~0ULL)
+
 
 #if 0
 #ifndef _VALIST

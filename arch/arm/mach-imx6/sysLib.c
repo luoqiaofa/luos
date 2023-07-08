@@ -83,11 +83,15 @@ int sysHwInit(void)
 	clk_enable();				/* 使能所有的时钟 1		*/
 	led_init();					/* 初始化led 			*/
 	// beep_init();				/* 初始化beep	 		*/
+#if 0
     epit1_init(0, 66000000/2); 
-
+    epit1_irqhandler_cb_setup(ledToggle);
+#else
+    // epit1_init(0, 66000000/1000); 
+    // epit1_init(0, 66000000/2); 
     // epit1_irqhandler_cb_setup(tickAnnounce);
-    // epit1_irqhandler_cb_setup(ledToggle);
-    
+#endif
+
 
 	uart_init();				/* 初始化串口，波特率115200 */
 	

@@ -18,7 +18,7 @@ ifeq ($(strip $(CONFIG_SOC_IMX6UL)), y)
 BUILD_MACROS += -DCONFIG_SOC_IMX6UL=1
 endif
 
-CFLAGS_OPTIONS  := -g -O1 -Wall -Wa,-mimplicit-it=thumb -nostdlib -fno-builtin
+CFLAGS_OPTIONS  := -g -O0 -Wall -Wa,-mimplicit-it=thumb -nostdlib -fno-builtin
 CFLAGS_DEFINES  := -DLUOS $(BUILD_MACROS)
 INCLUDES := kernel/core \
 	        include \

@@ -12,6 +12,10 @@ Copyright © zuozhongkai Co., Ltd. 1998-2019. All rights reserved.
 		 添加中断相关定义
 **************************************************************/
 
+.extern __osinfo__
+.extern coreIntEnter
+.extern coreIntExit
+.extern system_irqhandler
 .global _start  				/* 全局标号 */
 .type _start, %function
 .global Reset_Handler		/* 复位中断 					*/	
@@ -118,8 +122,7 @@ Undefined_Handler:
 
 /* SVC中断 */
 SVC_Handler:
-	ldr r0, =SVC_Handler
-	bx r0
+	add pc, lr, #0
 
 /* 预取终止中断 */
 PrefAbort_Handler:
@@ -140,7 +143,7 @@ NotUsed_Handler:
 /* IRQ中断！重点！！！！！ */
 IRQ_Handler:
 	push {lr}					/* 保存lr地址 */
-	push {r0-r3, r12}			/* 保存r0-r3，r12寄存器 */
+	push {r0-r12}			/* 保存r0-r3，r12寄存器 */
 
 	mrs r0, spsr				/* 读取spsr寄存器 */
 	push {r0}					/* 保存spsr寄存器 */
@@ -157,26 +160,65 @@ IRQ_Handler:
 								 * 这个中断号来绝对调用哪个中断服务函数
 								 */
 	push {r0, r1}				/* 保存r0,r1 */
-	
 	cps #0x13					/* 进入SVC模式，允许其他中断再次进去 */
 	
 	push {lr}					/* 保存SVC模式的lr寄存器 */
+
+    ldr r2, =coreIntEnter
+    blx r2
+
 	ldr r2, =system_irqhandler	/* 加载C语言中断处理函数到r2寄存器中*/
 	blx r2						/* 运行C语言中断处理函数，带有一个参数，保存在R0寄存器中 */
+
+    ldr r2, =coreIntExit
+    blx r2
 
 	pop {lr}					/* 执行完C语言中断服务函数，lr出栈 */
 	cps #0x12					/* 进入IRQ模式 */
 	pop {r0, r1}				
 	str r0, [r1, #0X10]			/* 中断执行完成，写EOIR */
-
+    
 	pop {r0}						
-	msr spsr_cxsf, r0			/* 恢复spsr */
+	msr SPSR_cxsf, r0			/* 恢复spsr */
 
-	pop {r0-r3, r12}			/* r0-r3,r12出栈 */
+    movw r2, #:lower16:__osinfo__ 
+    movt r2, #:upper16:__osinfo__ 
+    ldr  r0, [r2, #0]
+    ldr  r1, [r2, #4]
+    cmp  r0, r1
+    bne  IntContextSwitchSave
+    
+	pop {r0-r12}			/* r0-r3,r12出栈 */
 	pop {lr}					/* lr出栈 */
 	subs pc, lr, #4				/* 将lr-4赋给pc */
-	
-	
+
+IntContextSwitchSave :
+    add     r2, sp, #(15*4)
+    ldmfd   r2!, {r4-r12,lr}      
+	subs    lr, lr, #4				/* 将lr-4赋给pc */
+    ldr     r3, [r0, #0x10]         /* currentTcb->stack */
+    stmfd   r3!, {lr}                /* pc */
+    stmfd   r3!, {r4-r12, lr}        /* load r4-r12,lr */
+    ldmfd   r2!, {r4-r7}             /* load r0-r3 to r4-r7 */
+    stmfd   r3!, {r4-r7}
+    mrs     r4, SPSR
+    stmfd   r3!, {r4}
+
+	pop {r0-r12}			/* r0-r3,r12出栈 */
+	pop {lr}			 	/* lr出栈 */
+
+IntContextSwitchRetore:
+    movw    r2, #:lower16:__osinfo__
+    movt    r2, #:upper16:__osinfo__ 
+    ldr     r0, [r2, #0] @currentTcb
+    ldr     r1, [r2, #4] @highestTcb
+    str     sp, [r0, #0x10] @currentTcb->stack
+    str     r1, [r2, #0] @ currentTcb = highestTcb
+    ldr     r0, [r2, #0] @ reload currentTcb
+    ldr     sp, [r0, #0x10]
+    ldmfd   sp!, {r0}
+	msr     SPSR_cxsf,r0
+    ldmfd   sp!, {r0-r12, lr,pc}^
 
 /* FIQ中断 */
 FIQ_Handler:

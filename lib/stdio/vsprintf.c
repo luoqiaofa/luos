@@ -7,157 +7,60 @@
 /* vsprintf.c -- Lars Wirzenius & Linus Torvalds. */
 /*
  * Wirzenius wrote this portably, Torvalds fucked it up :-)
+ *
+ * from hush: simple_itoa() was lifted from boa-0.93.15
  */
 
-/* 
- * Fri Jul 13 2001 Crutcher Dunnavant <crutcher+kernel@datastacks.com>
- * - changed to provide snprintf and vsnprintf functions
- * So Feb  1 16:51:32 CET 2004 Juergen Quade <quade@hsnr.de>
- * - scnprintf and vscnprintf
- */
-
-//#include <stdarg.h>
-//#include <linux/module.h>
-#include "types.h"
-#include "kernel.h"
-
-#include "ctype.h"
-#include "string.h"
+#include <stdio.h>
+#include <autoconf.h>
+#include <stdarg.h>
+#include <types.h>
+#include <string.h>
+#include <ctype.h>
 #include "div64.h"
-#include "vsprintf.h"
-#include "bsp_uart.h"
+#include "compiler.h"
+#ifdef __GNUC__
+typedef long long       __kernel_loff_t;
+#if !defined(__STRICT_ANSI__)
+typedef __kernel_loff_t     loff_t;
+#endif
+#endif
 
-#define unlikely(x) __builtin_expect(!!(x), 0)
+#define noinline __attribute__((noinline))
 
-#define ADDCH(str, ch) do { \
-	if ((str) < end) \
-		*(str) = (ch); \
-	++str; \
-	} while (0)
-	
+/* we use this so that we can do without the ctype library */
+#define is_digit(c)	((c) >= '0' && (c) <= '9')
 
-/**
- * simple_strtoul - convert a string to an unsigned long
- * @cp: The start of the string
- * @endp: A pointer to the end of the parsed string will be placed here
- * @base: The number base to use
- */
-unsigned long simple_strtoul(const char *cp,char **endp,unsigned int base)
-{
-	unsigned long result = 0,value;
+unsigned long long simple_strtoull(const char *cp, char **endp,
+                            unsigned int base);
+unsigned long simple_strtoul(const char *cp, char **endp,
+				unsigned int base);
 
-	if (!base) {
-		base = 10;
-		if (*cp == '0') {
-			base = 8;
-			cp++;
-			if ((toupper(*cp) == 'X') && isxdigit(cp[1])) {
-				cp++;
-				base = 16;
-			}
-		}
-	} else if (base == 16) {
-		if (cp[0] == '0' && toupper(cp[1]) == 'X')
-			cp += 2;
-	}
-	while (isxdigit(*cp) &&
-	       (value = isdigit(*cp) ? *cp-'0' : toupper(*cp)-'A'+10) < base) {
-		result = result*base + value;
-		cp++;
-	}
-	if (endp)
-		*endp = (char *)cp;
-	return result;
-}
+long simple_strtol(const char *cp, char **endp, unsigned int base);
 
-//EXPORT_SYMBOL(simple_strtoul);
+long long simple_strtoll(const char *cp,char **endp,unsigned int base);
 
-/**
- * simple_strtol - convert a string to a signed long
- * @cp: The start of the string
- * @endp: A pointer to the end of the parsed string will be placed here
- * @base: The number base to use
- */
-long simple_strtol(const char *cp,char **endp,unsigned int base)
-{
-	if(*cp=='-')
-		return -simple_strtoul(cp+1,endp,base);
-	return simple_strtoul(cp,endp,base);
-}
-
-//EXPORT_SYMBOL(simple_strtol);
-
-/**
- * simple_strtoull - convert a string to an unsigned long long
- * @cp: The start of the string
- * @endp: A pointer to the end of the parsed string will be placed here
- * @base: The number base to use
- */
-unsigned long long simple_strtoull(const char *cp,char **endp,unsigned int base)
-{
-	unsigned long long result = 0,value;
-
-	if (!base) {
-		base = 10;
-		if (*cp == '0') {
-			base = 8;
-			cp++;
-			if ((toupper(*cp) == 'X') && isxdigit(cp[1])) {
-				cp++;
-				base = 16;
-			}
-		}
-	} else if (base == 16) {
-		if (cp[0] == '0' && toupper(cp[1]) == 'X')
-			cp += 2;
-	}
-	while (isxdigit(*cp) && (value = isdigit(*cp) ? *cp-'0' : (islower(*cp)
-	    ? toupper(*cp) : *cp)-'A'+10) < base) {
-		result = result*base + value;
-		cp++;
-	}
-	if (endp)
-		*endp = (char *)cp;
-	return result;
-}
-
-//EXPORT_SYMBOL(simple_strtoull);
-
-/**
- * simple_strtoll - convert a string to a signed long long
- * @cp: The start of the string
- * @endp: A pointer to the end of the parsed string will be placed here
- * @base: The number base to use
- */
-long long simple_strtoll(const char *cp,char **endp,unsigned int base)
-{
-	if(*cp=='-')
-		return -simple_strtoull(cp+1,endp,base);
-	return simple_strtoull(cp,endp,base);
-}
 
 static int skip_atoi(const char **s)
 {
-	int i=0;
+	int i = 0;
 
-	while (isdigit(**s))
-		i = i*10 + *((*s)++) - '0';
+	while (is_digit(**s))
+		i = i * 10 + *((*s)++) - '0';
+
 	return i;
 }
 
-#define ZEROPAD	1		/* pad with zero */
-#define SIGN	2		/* unsigned/signed long */
-#define PLUS	4		/* show plus */
-#define SPACE	8		/* space if plus */
-#define LEFT	16		/* left justified */
-#define SPECIAL	32		/* 0x */
-#define LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
+/* Decimal conversion is by far the most typical, and is used
+ * for /proc and /sys data. This directly impacts e.g. top performance
+ * with many processes running. We optimize it for speed
+ * using code from
+ * http://www.cs.uiowa.edu/~jones/bcd/decimal.html
+ * (with permission from the author, Douglas W. Jones). */
 
-#define SMALL	32		/* Must be 32 == 0x20 */
-
-
-
-//static char * number(char * buf, char * end, unsigned long long num, int base, int size, int precision, int type)
+/* Formats correctly any integer in [0,99999].
+ * Outputs from one to five digits depending on input.
+ * On i386 gcc 4.1.2 -O2: ~250 bytes of code. */
 static char *put_dec_trunc(char *buf, unsigned q)
 {
 	unsigned d3, d2, d1, d0;
@@ -193,7 +96,6 @@ static char *put_dec_trunc(char *buf, unsigned q)
 	}
 	return buf;
 }
-
 /* Same with if's removed. Always emits five digits */
 static char *put_dec_full(char *buf, unsigned q)
 {
@@ -236,9 +138,8 @@ static char *put_dec_full(char *buf, unsigned q)
 					*buf++ = q + '0';
 	return buf;
 }
-
 /* No inlining helps gcc to use registers better */
-static char *put_dec(char *buf, uint64_t num)
+static noinline char *put_dec(char *buf, uint64_t num)
 {
 	while (1) {
 		unsigned rem;
@@ -249,12 +150,31 @@ static char *put_dec(char *buf, uint64_t num)
 	}
 }
 
-static char *number(char *buf, char *end, signed long long num, int base, int size, int precision, int type)
+#define ZEROPAD	1		/* pad with zero */
+#define SIGN	2		/* unsigned/signed long */
+#define PLUS	4		/* show plus */
+#define SPACE	8		/* space if plus */
+#define LEFT	16		/* left justified */
+#define SMALL	32		/* Must be 32 == 0x20 */
+#define SPECIAL	64		/* 0x */
+
+/*
+ * Macro to add a new character to our output string, but only if it will
+ * fit. The macro moves to the next character position in the output string.
+ */
+#define ADDCH(str, ch) do { \
+	if ((str) < end) \
+		*(str) = (ch); \
+	++str; \
+	} while (0)
+
+static char *number(char *buf, char *end, u64 num,
+		int base, int size, int precision, int type)
 {
 	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
 	static const char digits[16] = "0123456789ABCDEF";
 
-	char tmp[100];
+	char tmp[66];
 	char sign;
 	char locase;
 	int need_pfx = ((type & SPECIAL) && base != 10);
@@ -266,13 +186,11 @@ static char *number(char *buf, char *end, signed long long num, int base, int si
 	if (type & LEFT)
 		type &= ~ZEROPAD;
 	sign = 0;
-
 	if (type & SIGN) {
-		if (num < 0) {
+		if ((s64) num < 0) {
 			sign = '-';
-			num = - num;
+			num = -(s64) num;
 			size--;
-			
 		} else if (type & PLUS) {
 			sign = '+';
 			size--;
@@ -285,7 +203,6 @@ static char *number(char *buf, char *end, signed long long num, int base, int si
 		size--;
 		if (base == 16)
 			size--;
-
 	}
 
 	/* generate full string in tmp[], in reverse order */
@@ -312,6 +229,7 @@ static char *number(char *buf, char *end, signed long long num, int base, int si
 	} else { /* base 10 */
 		i = put_dec(tmp, num) - tmp;
 	}
+
 	/* printing 100 using %2d gives "100", not "00" */
 	if (i > precision)
 		precision = i;
@@ -349,127 +267,181 @@ static char *number(char *buf, char *end, signed long long num, int base, int si
 	return buf;
 }
 
-#if 0
-static char * number(char * buf, char * end, unsigned long long num, int base, int size, int precision, int type)
+static char *string(char *buf, char *end, char *s, int field_width,
+		int precision, int flags)
 {
-	char c,sign,tmp[66];
-	const char *digits;
-	static const char small_digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-	static const char large_digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	int i;
+	int len, i;
 
-	puts("digits\r\n");
-	digits = (type & LARGE) ? large_digits : small_digits;
-	if (type & LEFT)
-		type &= ~ZEROPAD;
-	if (base < 2 || base > 36)
-		return NULL;
-	c = (type & ZEROPAD) ? '0' : ' ';
-	sign = 0;
-	if (type & SIGN) {
-		if ((signed long long) num < 0) {
-			sign = '-';
-			num = - (signed long long) num;
-			size--;
-		} else if (type & PLUS) {
-			sign = '+';
-			size--;
-		} else if (type & SPACE) {
-			sign = ' ';
-			size--;
-		}
-	}
-	if (type & SPECIAL) {
-		if (base == 16)
-			size -= 2;
-		else if (base == 8)
-			size--;
-	}
-	i = 0;
-	if (num == 0)
-		tmp[i++]='0';
-	else while (num != 0)
-		tmp[i++] = digits[do_div(num,base)];
-	if (i > precision)
-		precision = i;
-	size -= precision;
-	if (!(type&(ZEROPAD+LEFT))) {
-		while(size-->0) {
-			if (buf <= end)
-				*buf = ' ';
-			++buf;
-		}
-	}
-	if (sign) {
-		if (buf <= end)
-			*buf = sign;
-		++buf;
-	}
-	if (type & SPECIAL) {
-		if (base==8) {
-			if (buf <= end)
-				*buf = '0';
-			++buf;
-		} else if (base==16) {
-			if (buf <= end)
-				*buf = '0';
-			++buf;
-			if (buf <= end)
-				*buf = digits[33];
-			++buf;
-		}
-	}
-	puts("type&LEFT\r\n");
-	if (!(type & LEFT)) {
-		while (size-- > 0) {
-			if (buf <= end)
-				*buf = c;
-			++buf;
-		}
-	}
-	while (i < precision--) {
-		if (buf <= end)
-			*buf = '0';
-		++buf;
-	}
-	while (i-- > 0) {
-		if (buf <= end)
-			*buf = tmp[i];
-		++buf;
-	}
-	while (size-- > 0) {
-		if (buf <= end)
-			*buf = ' ';
-		++buf;
-	}
+	if (s == NULL)
+		s = "<NULL>";
+
+	len = strnlen(s, precision);
+
+	if (!(flags & LEFT))
+		while (len < field_width--)
+			ADDCH(buf, ' ');
+	for (i = 0; i < len; ++i)
+		ADDCH(buf, *s++);
+	while (len < field_width--)
+		ADDCH(buf, ' ');
 	return buf;
 }
-#endif
-/**
- * vsnprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
- * @args: Arguments for the format string
- *
- * The return value is the number of characters which would
- * be generated for the given input, excluding the trailing
- * '\0', as per ISO C99. If you want to have the exact
- * number of characters written into @buf as return value
- * (not including the trailing '\0'), use vscnprintf. If the
- * return is greater than or equal to @size, the resulting
- * string is truncated.
- *
- * Call this function if you are already dealing with a va_list.
- * You probably want snprintf instead.
- */
-int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
+
+#ifdef CONFIG_CMD_NET
+static const char hex_asc[] = "0123456789abcdef";
+#define hex_asc_lo(x)	hex_asc[((x) & 0x0f)]
+#define hex_asc_hi(x)	hex_asc[((x) & 0xf0) >> 4]
+
+static inline char *pack_hex_byte(char *buf, u8 byte)
 {
-	int len;
-	unsigned long long num;
-	int i, base;
-	char *str, *end, c;
-	const char *s;
+	*buf++ = hex_asc_hi(byte);
+	*buf++ = hex_asc_lo(byte);
+	return buf;
+}
+
+static char *mac_address_string(char *buf, char *end, u8 *addr, int field_width,
+				int precision, int flags)
+{
+	/* (6 * 2 hex digits), 5 colons and trailing zero */
+	char mac_addr[6 * 3];
+	char *p = mac_addr;
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		p = pack_hex_byte(p, addr[i]);
+		if (!(flags & SPECIAL) && i != 5)
+			*p++ = ':';
+	}
+	*p = '\0';
+
+	return string(buf, end, mac_addr, field_width, precision,
+		      flags & ~SPECIAL);
+}
+
+static char *ip6_addr_string(char *buf, char *end, u8 *addr, int field_width,
+			 int precision, int flags)
+{
+	/* (8 * 4 hex digits), 7 colons and trailing zero */
+	char ip6_addr[8 * 5];
+	char *p = ip6_addr;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		p = pack_hex_byte(p, addr[2 * i]);
+		p = pack_hex_byte(p, addr[2 * i + 1]);
+		if (!(flags & SPECIAL) && i != 7)
+			*p++ = ':';
+	}
+	*p = '\0';
+
+	return string(buf, end, ip6_addr, field_width, precision,
+		      flags & ~SPECIAL);
+}
+
+static char *ip4_addr_string(char *buf, char *end, u8 *addr, int field_width,
+			 int precision, int flags)
+{
+	/* (4 * 3 decimal digits), 3 dots and trailing zero */
+	char ip4_addr[4 * 4];
+	char temp[3];	/* hold each IP quad in reverse order */
+	char *p = ip4_addr;
+	int i, digits;
+
+	for (i = 0; i < 4; i++) {
+		digits = put_dec_trunc(temp, addr[i]) - temp;
+		/* reverse the digits in the quad */
+		while (digits--)
+			*p++ = temp[digits];
+		if (i != 3)
+			*p++ = '.';
+	}
+	*p = '\0';
+
+	return string(buf, end, ip4_addr, field_width, precision,
+		      flags & ~SPECIAL);
+}
+#endif
+
+/*
+ * Show a '%p' thing.  A kernel extension is that the '%p' is followed
+ * by an extra set of alphanumeric characters that are extended format
+ * specifiers.
+ *
+ * Right now we handle:
+ *
+ * - 'M' For a 6-byte MAC address, it prints the address in the
+ *       usual colon-separated hex notation
+ * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way (dot-separated
+ *       decimal for v4 and colon separated network-order 16 bit hex for v6)
+ * - 'i' [46] for 'raw' IPv4/IPv6 addresses, IPv6 omits the colons, IPv4 is
+ *       currently the same
+ *
+ * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
+ * function pointers are really function descriptors, which contain a
+ * pointer to the real address.
+ */
+static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
+		int field_width, int precision, int flags)
+{
+	u64 num = (uintptr_t)ptr;
+
+	/*
+	 * Being a boot loader, we explicitly allow pointers to
+	 * (physical) address null.
+	 */
+#if 0
+	if (!ptr)
+		return string(buf, end, "(null)", field_width, precision,
+			      flags);
+#endif
+
+#ifdef CONFIG_CMD_NET
+	switch (*fmt) {
+	case 'a':
+		flags |= SPECIAL | ZEROPAD;
+
+		switch (fmt[1]) {
+		case 'p':
+		default:
+			field_width = sizeof(phys_addr_t) * 2 + 2;
+			num = *(phys_addr_t *)ptr;
+			break;
+		}
+		break;
+	case 'm':
+		flags |= SPECIAL;
+		/* Fallthrough */
+	case 'M':
+		return mac_address_string(buf, end, ptr, field_width,
+					  precision, flags);
+	case 'i':
+		flags |= SPECIAL;
+		/* Fallthrough */
+	case 'I':
+		if (fmt[1] == '6')
+			return ip6_addr_string(buf, end, ptr, field_width,
+					       precision, flags);
+		if (fmt[1] == '4')
+			return ip4_addr_string(buf, end, ptr, field_width,
+					       precision, flags);
+		flags &= ~SPECIAL;
+		break;
+	}
+#endif
+	flags |= SMALL;
+	if (field_width == -1) {
+		field_width = 2*sizeof(void *);
+		flags |= ZEROPAD;
+	}
+	return number(buf, end, num, 16, field_width, precision, flags);
+}
+
+static int vsnprintf_internal(char *buf, size_t size, const char *fmt,
+			      va_list args)
+{
+	u64 num;
+	int base;
+	char *str;
 
 	int flags;		/* flags to number() */
 
@@ -479,46 +451,47 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	int qualifier;		/* 'h', 'l', or 'L' for integer fields */
 				/* 'z' support added 23/7/1999 S.H.    */
 				/* 'z' changed to 'Z' --davidm 1/25/99 */
+				/* 't' added for ptrdiff_t */
+	char *end = buf + size;
 
-	/* Reject out-of-range values early */
-	if (unlikely((int) size < 0)) {
-		/* There can be only one.. */
-//		static int warn = 1;
-//		WARN_ON(warn);
-//		warn = 0;
-		return 0;
+	/* Make sure end is always >= buf - do we want this in U-Boot? */
+	if (end < buf) {
+		end = ((void *)-1);
+		size = end - buf;
 	}
-
 	str = buf;
-	end = buf + size - 1;
-
-	if (end < buf - 1) {
-		end = ((void *) -1);
-		size = end - buf + 1;
-	}
 
 	for (; *fmt ; ++fmt) {
 		if (*fmt != '%') {
-			if (str <= end)
-				*str = *fmt;
-			++str;
+			ADDCH(str, *fmt);
 			continue;
 		}
 
 		/* process flags */
 		flags = 0;
-		repeat:
+repeat:
 			++fmt;		/* this also skips first '%' */
 			switch (*fmt) {
-				case '-': flags |= LEFT; goto repeat;
-				case '+': flags |= PLUS; goto repeat;
-				case ' ': flags |= SPACE; goto repeat;
-				case '#': flags |= SPECIAL; goto repeat;
-				case '0': flags |= ZEROPAD; goto repeat;
+			case '-':
+				flags |= LEFT;
+				goto repeat;
+			case '+':
+				flags |= PLUS;
+				goto repeat;
+			case ' ':
+				flags |= SPACE;
+				goto repeat;
+			case '#':
+				flags |= SPECIAL;
+				goto repeat;
+			case '0':
+				flags |= ZEROPAD;
+				goto repeat;
 			}
+
 		/* get field width */
 		field_width = -1;
-		if (isdigit(*fmt))
+		if (is_digit(*fmt))
 			field_width = skip_atoi(&fmt);
 		else if (*fmt == '*') {
 			++fmt;
@@ -533,8 +506,8 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		/* get the precision */
 		precision = -1;
 		if (*fmt == '.') {
-			++fmt;	
-			if (isdigit(*fmt))
+			++fmt;
+			if (is_digit(*fmt))
 				precision = skip_atoi(&fmt);
 			else if (*fmt == '*') {
 				++fmt;
@@ -548,7 +521,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		/* get the conversion qualifier */
 		qualifier = -1;
 		if (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' ||
-		    *fmt =='Z' || *fmt == 'z') {
+		    *fmt == 'Z' || *fmt == 'z' || *fmt == 't') {
 			qualifier = *fmt;
 			++fmt;
 			if (qualifier == 'l' && *fmt == 'l') {
@@ -561,116 +534,70 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		base = 10;
 
 		switch (*fmt) {
-			
-			case 'c':
-				if (!(flags & LEFT)) {
-					while (--field_width > 0) {
-						if (str <= end)
-							*str = ' ';
-						++str;
-					}
-				}
-				c = (unsigned char) va_arg(args, int);
-				if (str <= end)
-					*str = c;
-				++str;
-				while (--field_width > 0) {
-					if (str <= end)
-						*str = ' ';
-					++str;
-				}
-				continue;
+		case 'c':
+			if (!(flags & LEFT)) {
+				while (--field_width > 0)
+					ADDCH(str, ' ');
+			}
+			ADDCH(str, (unsigned char) va_arg(args, int));
+			while (--field_width > 0)
+				ADDCH(str, ' ');
+			continue;
 
-			case 's':
-				s = va_arg(args, char *);
-				if ((unsigned long)s < 1024)//PAGE_SIZE)
-					s = "<NULL>";
+		case 's':
+			str = string(str, end, va_arg(args, char *),
+				     field_width, precision, flags);
+			continue;
 
-				len = strnlen(s, precision);
+		case 'p':
+			str = pointer(fmt + 1, str, end,
+					va_arg(args, void *),
+					field_width, precision, flags);
+			/* Skip all alphanumeric pointer suffixes */
+			while (isalnum(fmt[1]))
+				fmt++;
+			continue;
 
-				if (!(flags & LEFT)) {
-					while (len < field_width--) {
-						if (str <= end)
-							*str = ' ';
-						++str;
-					}
-				}
-				for (i = 0; i < len; ++i) {
-					if (str <= end)
-						*str = *s;
-					++str; ++s;
-				}
-				while (len < field_width--) {
-					if (str <= end)
-						*str = ' ';
-					++str;
-				}
-				continue;
+		case 'n':
+			if (qualifier == 'l') {
+				long *ip = va_arg(args, long *);
+				*ip = (str - buf);
+			} else {
+				int *ip = va_arg(args, int *);
+				*ip = (str - buf);
+			}
+			continue;
 
-			case 'p':
-				if (field_width == -1) {
-					field_width = 2*sizeof(void *);
-					flags |= ZEROPAD;
-				}
-				str = number(str, end,
-						(unsigned long) va_arg(args, void *),
-						16, field_width, precision, flags);
-				continue;
+		case '%':
+			ADDCH(str, '%');
+			continue;
 
+		/* integer number formats - set up the flags and "break" */
+		case 'o':
+			base = 8;
+			break;
 
-			case 'n':
-				/* FIXME:
-				* What does C99 say about the overflow case here? */
-				if (qualifier == 'l') {
-					long * ip = va_arg(args, long *);
-					*ip = (str - buf);
-				} else if (qualifier == 'Z' || qualifier == 'z') {
-					size_t * ip = va_arg(args, size_t *);
-					*ip = (str - buf);
-				} else {
-					int * ip = va_arg(args, int *);
-					*ip = (str - buf);
-				}
-				continue;
+		case 'x':
+			flags |= SMALL;
+		case 'X':
+			base = 16;
+			break;
 
-			case '%':
-				if (str <= end)
-					*str = '%';
-				++str;
-				continue;
+		case 'd':
+		case 'i':
+			flags |= SIGN;
+		case 'u':
+			break;
 
-				/* integer number formats - set up the flags and "break" */
-			case 'o':
-				base = 8;
-				break;
-
-			case 'X':
-				flags |= LARGE;
-			case 'x':
-				base = 16;
-				break;
-
-			case 'd':
-			case 'i':
-				flags |= SIGN;
-			case 'u':
-				break;
-
-			default:
-				if (str <= end)
-					*str = '%';
-				++str;
-				if (*fmt) {
-					if (str <= end)
-						*str = *fmt;
-					++str;
-				} else {
-					--fmt;
-				}
-				continue;
+		default:
+			ADDCH(str, '%');
+			if (*fmt)
+				ADDCH(str, *fmt);
+			else
+				--fmt;
+			continue;
 		}
-
-		if (qualifier == 'L')
+		if (qualifier == 'L')  /* "quad" for 64 bit variables */
 			num = va_arg(args, unsigned long long);
 		else if (qualifier == 'l') {
 			num = va_arg(args, unsigned long);
@@ -678,6 +605,8 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				num = (signed long) num;
 		} else if (qualifier == 'Z' || qualifier == 'z') {
 			num = va_arg(args, size_t);
+		} else if (qualifier == 't') {
+			num = va_arg(args, ptrdiff_t);
 		} else if (qualifier == 'h') {
 			num = (unsigned short) va_arg(args, int);
 			if (flags & SIGN)
@@ -687,84 +616,40 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			if (flags & SIGN)
 				num = (signed int) num;
 		}
-		str = number(str, end, num, base,
-				field_width, precision, flags);
+		str = number(str, end, num, base, field_width, precision,
+			     flags);
 	}
-	if (str <= end)
-		*str = '\0';
-	else if (size > 0)
-		/* don't write out a null byte if the buf size is zero */
-		*end = '\0';
-	/* the trailing null byte doesn't count towards the total
-	* ++str;
-	*/
-	return str-buf;
+
+	if (size > 0) {
+		ADDCH(str, '\0');
+		if (str > end)
+			end[-1] = '\0';
+		--str;
+	}
+	/* the trailing null byte doesn't count towards the total */
+	return str - buf;
 }
 
-//EXPORT_SYMBOL(vsnprintf);
+int vsnprintf(char *buf, size_t size, const char *fmt,
+			      va_list args)
+{
+	return vsnprintf_internal(buf, size, fmt, args);
+}
 
-/**
- * vscnprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
- * @args: Arguments for the format string
- *
- * The return value is the number of characters which have been written into
- * the @buf not including the trailing '\0'. If @size is <= 0 the function
- * returns 0.
- *
- * Call this function if you are already dealing with a va_list.
- * You probably want scnprintf instead.
- */
 int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
 	int i;
 
-	i=vsnprintf(buf,size,fmt,args);
-	return (i >= size) ? (size - 1) : i;
+	i = vsnprintf(buf, size, fmt, args);
+
+	if (likely(i < size))
+		return i;
+	if (size != 0)
+		return size - 1;
+	return 0;
 }
 
-//EXPORT_SYMBOL(vscnprintf);
-
-/**
- * snprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
- * @...: Arguments for the format string
- *
- * The return value is the number of characters which would be
- * generated for the given input, excluding the trailing null,
- * as per ISO C99.  If the return is greater than or equal to
- * @size, the resulting string is truncated.
- */
-int snprintf(char * buf, size_t size, const char *fmt, ...)
-{
-	va_list args;
-	int i;
-
-	va_start(args, fmt);
-	i=vsnprintf(buf,size,fmt,args);
-	va_end(args);
-	return i;
-}
-
-//EXPORT_SYMBOL(snprintf);
-
-/**
- * scnprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
- * @...: Arguments for the format string
- *
- * The return value is the number of characters written into @buf not including
- * the trailing '\0'. If @size is <= 0 the function returns 0. If the return is
- * greater than or equal to @size, the resulting string is truncated.
- */
-
-int scnprintf(char * buf, size_t size, const char *fmt, ...)
+int snprintf(char *buf, size_t size, const char *fmt, ...)
 {
 	va_list args;
 	int i;
@@ -772,61 +657,148 @@ int scnprintf(char * buf, size_t size, const char *fmt, ...)
 	va_start(args, fmt);
 	i = vsnprintf(buf, size, fmt, args);
 	va_end(args);
-	return (i >= size) ? (size - 1) : i;
-}
-//EXPORT_SYMBOL(scnprintf);
 
-
-/**
- * vsprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @fmt: The format string to use
- * @args: Arguments for the format string
- *
- * The function returns the number of characters written
- * into @buf. Use vsnprintf or vscnprintf in order to avoid
- * buffer overflows.
- *
- * Call this function if you are already dealing with a va_list.
- * You probably want sprintf instead.
- */
-int vsprintf(char *buf, const char *fmt, va_list args)
-{
-	return vsnprintf(buf, (~0U)>>1, fmt, args);
+	return i;
 }
 
-//EXPORT_SYMBOL(vsprintf);
-
-/**
- * sprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @fmt: The format string to use
- * @...: Arguments for the format string
- *
- * The function returns the number of characters written
- * into @buf. Use snprintf or scnprintf in order to avoid
- * buffer overflows.
- */
-int sprintf(char * buf, const char *fmt, ...)
+int scnprintf(char *buf, size_t size, const char *fmt, ...)
 {
 	va_list args;
 	int i;
 
 	va_start(args, fmt);
-/*	putc('P');
-	putc(0x0d);
-	putc(0x0a);
-*/	
-	i=vsprintf(buf,fmt,args);
-/*	putc('E');
-	putc(0x0d);
-	putc(0x0a);
-*/	
+	i = vscnprintf(buf, size, fmt, args);
+	va_end(args);
+
+	return i;
+}
+
+/**
+ * Format a string and place it in a buffer (va_list version)
+ *
+ * @param buf	The buffer to place the result into
+ * @param fmt	The format string to use
+ * @param args	Arguments for the format string
+ *
+ * The function returns the number of characters written
+ * into @buf. Use vsnprintf() or vscnprintf() in order to avoid
+ * buffer overflows.
+ *
+ * If you're not already dealing with a va_list consider using sprintf().
+ */
+int vsprintf(char *buf, const char *fmt, va_list args)
+{
+	return vsnprintf_internal(buf, INT_MAX, fmt, args);
+}
+
+int sprintf(char *buf, const char *fmt, ...)
+{
+	va_list args;
+	int i;
+
+	va_start(args, fmt);
+	i = vsprintf(buf, fmt, args);
 	va_end(args);
 	return i;
 }
 
-//EXPORT_SYMBOL(sprintf);
+#if 0
+int printf(const char *fmt, ...)
+{
+	va_list args;
+	uint i;
+	char printbuffer[CONFIG_SYS_PBSIZE];
+
+	va_start(args, fmt);
+
+	/*
+	 * For this to work, printbuffer must be larger than
+	 * anything we ever want to print.
+	 */
+	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
+	va_end(args);
+
+	/* Print the string */
+	puts(printbuffer);
+	return i;
+}
+#endif
+
+int vprintf(const char *fmt, va_list args)
+{
+	uint i;
+	char printbuffer[CONFIG_SYS_PBSIZE];
+
+	/*
+	 * For this to work, printbuffer must be larger than
+	 * anything we ever want to print.
+	 */
+	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
+
+	/* Print the string */
+	puts(printbuffer);
+	return i;
+}
+
+
+void __assert_fail(const char *assertion, const char *file, unsigned line,
+		   const char *function)
+{
+	/* This will not return */
+#if 0
+	panic("%s:%u: %s: Assertion `%s' failed.", file, line, function,
+	      assertion);
+#else
+    while (1) {;}
+#endif
+}
+
+char *simple_itoa(ulong i)
+{
+	/* 21 digits plus null terminator, good for 64-bit or smaller ints */
+	static char local[22];
+	char *p = &local[21];
+
+	*p-- = '\0';
+	do {
+		*p-- = '0' + i % 10;
+		i /= 10;
+	} while (i > 0);
+	return p + 1;
+}
+
+/* We don't seem to have %'d in U-Boot */
+void print_grouped_ull(unsigned long long int_val, int digits)
+{
+	char str[21], *s;
+	int grab = 3;
+
+	digits = (digits + 2) / 3;
+	sprintf(str, "%*llu", digits * 3, int_val);
+	for (s = str; *s; s += grab) {
+		if (s != str)
+			putc(s[-1] != ' ' ? ',' : ' ', stdout);
+		printf("%.*s", grab, s);
+		grab = 3;
+	}
+}
+
+bool str2off(const char *p, loff_t *num)
+{
+	char *endptr;
+
+	*num = simple_strtoull(p, &endptr, 16);
+	return *p != '\0' && *endptr == '\0';
+}
+
+bool str2long(const char *p, ulong *num)
+{
+	char *endptr;
+
+	*num = simple_strtoul(p, &endptr, 16);
+	return *p != '\0' && *endptr == '\0';
+}
+
 
 /**
  * vsscanf - Unformat a buffer into a list of arguments
@@ -1044,23 +1016,3 @@ int vsscanf(const char * buf, const char * fmt, va_list args)
 	return num;
 }
 
-//EXPORT_SYMBOL(vsscanf);
-
-/**
- * sscanf - Unformat a buffer into a list of arguments
- * @buf:	input buffer
- * @fmt:	formatting of buffer
- * @...:	resulting arguments
- */
-int sscanf(const char * buf, const char * fmt, ...)
-{
-	va_list args;
-	int i;
-
-	va_start(args,fmt);
-	i = vsscanf(buf,fmt,args);
-	va_end(args);
-	return i;
-}
-
-//EXPORT_SYMBOL(sscanf);

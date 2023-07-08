@@ -53,7 +53,7 @@ void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
     stk->R12 = 0x12121212;
     stk->LR  = (uint32_t)exitRtn; /* R14 */
     stk->PC  = (uint32_t)tcb->taskEntry; /* R15 */
-    stk->SPSR = 0x40000173;
+    stk->SPSR = 0x40000173; /* cpsrGet()*/;
     tcb->stack = stk;
 }
 

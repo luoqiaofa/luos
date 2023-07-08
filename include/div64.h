@@ -1,35 +1,49 @@
-#ifndef __ASM_ARM_DIV64
-#define __ASM_ARM_DIV64
-//#include <asm/system.h>
-
+#ifndef _ASM_GENERIC_DIV64_H
+#define _ASM_GENERIC_DIV64_H
 /*
+ * Copyright (C) 2003 Bernardo Innocenti <bernie@develer.com>
+ * Based on former asm-ppc/div64.h and asm-m68knommu/div64.h
+ *
  * The semantics of do_div() are:
  *
  * uint32_t do_div(uint64_t *n, uint32_t base)
  * {
- * 	uint32_t remainder = *n % base;
- * 	*n = *n / base;
- * 	return remainder;
+ *	uint32_t remainder = *n % base;
+ *	*n = *n / base;
+ *	return remainder;
  * }
  *
- * In other words, a 64-bit dividend with a 32-bit divisor producing
- * a 64-bit result and a 32-bit remainder.  To accomplish this optimally
- * we call a special __do_div64 helper with completely non standard
- * calling convention for arguments and results (beware).
+ * NOTE: macro parameter n is evaluated multiple times,
+ *       beware of side effects!
  */
-extern unsigned int __div64_32(unsigned long long *dividend, unsigned int divisor);
 
+#include <linux/types.h>
+
+extern uint32_t __div64_32(uint64_t *dividend, uint32_t divisor);
+
+/* The unnecessary pointer compare is there
+ * to check for type safety (n must be 64bit)
+ */
 # define do_div(n,base) ({				\
-	unsigned int __base = (base);			\
-	unsigned int __rem;					\
+	uint32_t __base = (base);			\
+	uint32_t __rem;					\
 	(void)(((typeof((n)) *)0) == ((uint64_t *)0));	\
 	if (((n) >> 32) == 0) {			\
-		__rem = (unsigned int)(n) % __base;		\
-		(n) = (unsigned int)(n) / __base;		\
+		__rem = (uint32_t)(n) % __base;		\
+		(n) = (uint32_t)(n) / __base;		\
 	} else						\
 		__rem = __div64_32(&(n), __base);	\
 	__rem;						\
  })
 
+/* Wrapper for do_div(). Doesn't modify dividend and returns
+ * the result, not reminder.
+ */
+static inline uint64_t lldiv(uint64_t dividend, uint32_t divisor)
+{
+	uint64_t __res = dividend;
+	do_div(__res, divisor);
+	return(__res);
+}
 
-#endif
+#endif /* _ASM_GENERIC_DIV64_H */

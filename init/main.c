@@ -257,7 +257,9 @@ static void *usrRoot(void *arg)
         }
     }
 #endif
-    while (1) {;}
+    while (1) {
+        taskDelay(2);
+    }
 
     msgQId = msgQCreate(3, 128, 0);
     if (NULL != msgQId) {

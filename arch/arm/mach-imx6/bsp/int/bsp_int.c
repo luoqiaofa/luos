@@ -58,6 +58,7 @@ void system_register_irqhandler(IRQn_Type irq, system_irq_handler_t handler, voi
   	irqTable[irq].userParam = userParam;
 }
 
+
 /*
  * @description			: C语言中断服务函数，irq汇编中断服务函数会
  						  调用此函数，此函数通过在中断服务列表中查
@@ -82,7 +83,6 @@ void system_irqhandler(unsigned int giccIar)
    irqTable[intNum].irqHandler(intNum, irqTable[intNum].userParam);
  
    irqNesting--;	/* 中断执行完成，中断嵌套寄存器减一 */
-
 }
 
 /*

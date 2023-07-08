@@ -9,6 +9,7 @@ Copyright © zuozhongkai Co., Ltd. 1998-2019. All rights reserved.
 日志	   : 初版V1.0 2019/1/15 左忠凯创建
 ***************************************************************/
 #include "bsp_uart.h"
+#include "coreLib.h"
 
 /*
  * @description : 初始化串口1,波特率为115200
@@ -279,8 +280,8 @@ int puts(const char *str)
  * @return		: 接收到的字符
  */
 int getc(FILE *stream)
-{
-	while((UART1->USR2 & 0x1) == 0);/* 等待接收完成 */
+{ // @suppress("Symbol is not resolved")
+	while((UART1->USR2 & 0x1) == 0) {taskDelay(2);}/* 等待接收完成 */ // @suppress("Field cannot be resolved")
 	return UART1->URXD;				/* 返回接收到的数据 */
 }
 
