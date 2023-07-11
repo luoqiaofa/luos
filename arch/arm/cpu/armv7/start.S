@@ -16,6 +16,7 @@ Copyright © zuozhongkai Co., Ltd. 1998-2019. All rights reserved.
 .extern coreIntEnter
 .extern coreIntExit
 .extern system_irqhandler
+.extern coreContextHook
 .global _start  				/* 全局标号 */
 .type _start, %function
 .global Reset_Handler		/* 复位中断 					*/	
@@ -122,7 +123,7 @@ Undefined_Handler:
 
 /* SVC中断 */
 SVC_Handler:
-	add pc, lr, #0
+	add pc, lr, #00
 
 /* 预取终止中断 */
 PrefAbort_Handler:
@@ -162,11 +163,12 @@ IRQ_Handler:
 	push {r0, r1}				/* 保存r0,r1 */
 	cps #0x13					/* 进入SVC模式，允许其他中断再次进去 */
 	
-	push {lr}					/* 保存SVC模式的lr寄存器 */
+	push {r0-r1, lr}					/* 保存SVC模式的lr寄存器 */
 
     ldr r2, =coreIntEnter
     blx r2
 
+    pop {r0-r1}
 	ldr r2, =system_irqhandler	/* 加载C语言中断处理函数到r2寄存器中*/
 	blx r2						/* 运行C语言中断处理函数，带有一个参数，保存在R0寄存器中 */
 
@@ -178,9 +180,6 @@ IRQ_Handler:
 	pop {r0, r1}				
 	str r0, [r1, #0X10]			/* 中断执行完成，写EOIR */
     
-	pop {r0}						
-	msr SPSR_cxsf, r0			/* 恢复spsr */
-
     movw r2, #:lower16:__osinfo__ 
     movt r2, #:upper16:__osinfo__ 
     ldr  r0, [r2, #0]
@@ -188,37 +187,68 @@ IRQ_Handler:
     cmp  r0, r1
     bne  IntContextSwitchSave
     
+	pop {r0}						
+	msr SPSR_cxsf, r0			/* 恢复spsr */
 	pop {r0-r12}			/* r0-r3,r12出栈 */
 	pop {lr}					/* lr出栈 */
 	subs pc, lr, #4				/* 将lr-4赋给pc */
 
 IntContextSwitchSave :
-    add     r2, sp, #(15*4)
-    ldmfd   r2!, {r4-r12,lr}      
-	subs    lr, lr, #4				/* 将lr-4赋给pc */
-    ldr     r3, [r0, #0x10]         /* currentTcb->stack */
-    stmfd   r3!, {lr}                /* pc */
-    stmfd   r3!, {r4-r12, lr}        /* load r4-r12,lr */
-    ldmfd   r2!, {r4-r7}             /* load r0-r3 to r4-r7 */
-    stmfd   r3!, {r4-r7}
-    mrs     r4, SPSR
-    stmfd   r3!, {r4}
-
-	pop {r0-r12}			/* r0-r3,r12出栈 */
-	pop {lr}			 	/* lr出栈 */
-
-IntContextSwitchRetore:
+    cpsid   if
+    cps     0x13
+    sub     r3, sp, #(16*4)     /* current svc sp */
+    mov     r1, r3              /* backup base bottom of stk to r1 */
+    cps     0x12
+    mov     r2, sp
+    ldmfd   r2!,{r4-r8}         /* save to stk->spsr, stk->r0-r3 */
+    add     r3, r3, #(5*4)
+    stmfd   r3!, {r4-r8}
+    ldmfd   r2!,{r4-r12}  /* r0-r12 */
+    add     r3, r1, #(14*4)
+    stmfd   r3!, {r4-r12}       /* save to stk->r4-r12 */
+    cps     0x13
+    add     r3, r1, #(15*4)       
+    stmfd   r3!, {lr}           /* save to stk->LR */
+    cps     0x12
+    ldmfd   r2!, {r4}           /* load lr to r4 */
+    subs    r4, r4, #4
+    add     r3, r1, #(16*4)
+    stmfd   r3!, {r4}           /* save to stk->PC */
+    str     r1, [r0, #0x10]     /* save currentTcb->stack */
+IntContextSwitchRestore:
     movw    r2, #:lower16:__osinfo__
     movt    r2, #:upper16:__osinfo__ 
-    ldr     r0, [r2, #0] @currentTcb
     ldr     r1, [r2, #4] @highestTcb
-    str     sp, [r0, #0x10] @currentTcb->stack
     str     r1, [r2, #0] @ currentTcb = highestTcb
     ldr     r0, [r2, #0] @ reload currentTcb
-    ldr     sp, [r0, #0x10]
+    ldr     r2, [r0, #0x10] /* load currentTcb->stack to r2 */
+    add     r1, r2, #(16*4)
+    mov     r3, sp
+    ldmfd   r2!, {r4-r8} /* r3sr, r0-r3 */
+    add     r3,  r3, #(5*4)
+    stmfd   r3!, {r4-r8}
+    ldmfd   r2!, {r4-r12} /* r4-r12 */
+    add     r3,  r3, #(14*4)
+    stmfd   r3!, {r4-r12}
+    cps     0x13
+    ldmfd   r2!, {lr} /* lr */
+    mov     sp, r1  
+    cps     0x12
+    ldmfd   r2!, {r4} /* pc */
+    add     r3,  r3, #(10*4)
+    stmfd   r3!, {r4}
+    str     r2, [r0, #0x10] /* update stk->stack */
+
+    push    {r0-r7}
+    ldr     r0, =coreContextHook
+    blx     r0
+    pop     {r0-r7}
+
     ldmfd   sp!, {r0}
 	msr     SPSR_cxsf,r0
-    ldmfd   sp!, {r0-r12, lr,pc}^
+    ldmfd   sp!, {r0-r12}
+    cpsie   if
+    ldmfd   sp!, {pc}^
 
 /* FIQ中断 */
 FIQ_Handler:
