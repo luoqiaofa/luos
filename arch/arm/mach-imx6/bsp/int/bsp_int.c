@@ -66,23 +66,32 @@ void system_register_irqhandler(IRQn_Type irq, system_irq_handler_t handler, voi
  * @param - giccIar		: 中断号
  * @return 				: 无
  */
-void system_irqhandler(unsigned int giccIar) 
+void system_irqhandler(void) 
 {
+    GIC_Type *gic;
+    uint32_t gicIar;
+    uint32_t intNum;
+    system_irq_handler_t handler;
 
-   uint32_t intNum = giccIar & 0x3FFUL;
-   
-   /* 检查中断号是否符合要求 */
-   if ((intNum == 1023) || (intNum >= NUMBER_OF_INT_VECTORS))
-   {
-	 	return;
-   }
- 
-   irqNesting++;	/* 中断嵌套计数器加一 */
+    gic = (GIC_Type *)(__get_CBAR() & 0xFFFF0000UL);
+    gicIar = gic->C_IAR;
+    intNum = gicIar & 0x3FFUL;
+    /* 检查中断号是否符合要求 */
+    if ((intNum == 1023) || (intNum >= NUMBER_OF_INT_VECTORS))
+    {
+        return;
+    }
 
-   /* 根据传递进来的中断号，在irqTable中调用确定的中断服务函数*/
-   irqTable[intNum].irqHandler(intNum, irqTable[intNum].userParam);
- 
-   irqNesting--;	/* 中断执行完成，中断嵌套寄存器减一 */
+    irqNesting++;	/* 中断嵌套计数器加一 */
+
+    /* 根据传递进来的中断号，在irqTable中调用确定的中断服务函数*/
+    handler = irqTable[intNum].irqHandler;
+    if (NULL != handler) {
+        handler(intNum, irqTable[intNum].userParam);
+    }
+
+    irqNesting--;	/* 中断执行完成，中断嵌套寄存器减一 */
+    gic->C_EOIR = gicIar;
 }
 
 /*

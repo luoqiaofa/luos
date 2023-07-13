@@ -28,7 +28,7 @@ typedef struct _sys_irq_handle
 void int_init(void);
 void system_irqtable_init(void);
 void system_register_irqhandler(IRQn_Type irq, system_irq_handler_t handler, void *userParam);
-void system_irqhandler(unsigned int giccIar); 
+void system_irqhandler(void); 
 void default_irqhandler(unsigned int giccIar, void *userParam); 
 
 

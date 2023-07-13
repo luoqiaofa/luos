@@ -1,4 +1,5 @@
 .extern __osinfo__
+.extern coreContextHook
 .global cpuIntLock
 .global cpuContextSwitch
 .global cpuIntUnlock
@@ -23,7 +24,6 @@ cpuIntUnlock:
 highestTaskStart: 
     dsb     ish
     clrex
-    cps     #0x13                   /* 进入SVC模式，允许其他中断再次进去 */
     movw    r2, #:lower16:__osinfo__
     movt    r2, #:upper16:__osinfo__ 
     ldr     r0, [r2, #0] @currentTcb
@@ -49,6 +49,10 @@ cpuContextSwitch:
     str     r1, [r2, #0] @ currentTcb = highestTcb
     ldr     r0, [r2, #0] @ reload currentTcb
     ldr     sp, [r0, #0x10]
+    push    {r0-r7}
+    ldr     r0, =coreContextHook
+    blx     r0
+    pop     {r0-r7}
     ldmfd   sp!, {r0}
 	msr     SPSR_cxsf,r0
     ldmfd   sp!, {r0-r12, lr}

@@ -1,8 +1,10 @@
-#include "stdio.h"
 #include "vsprintf.h"
 #include "string.h"
 #include "printf.h"
 #include "bsp_uart.h"
+
+extern void putc(int c, FILE *fp);
+extern int getc(FILE *stream);
 
 #define	OUTBUFSIZE	1024
 #define	INBUFSIZE	1024
@@ -37,7 +39,7 @@ int scanf(const char * fmt, ...)
 	
 	while(1)
 	{
-		c = getc(stdin);
+		c = getc(stdout);
 		putc(c, stdout);
 		if((c == 0x0d) || (c == 0x0a))
 		{

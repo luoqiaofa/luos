@@ -42,7 +42,9 @@ CFLAGS_INCLUDES := $(addprefix -I,$(INCLUDES))
 
 CFLAGS := $(CFLAGS_OPTIONS) $(CFLAGS_DEFINES) $(CFLAGS_INCLUDES)
 
-LD_FLAGS := -lgcc -L/opt/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/lib/gcc/arm-none-linux-gnueabihf/9.2.1
+LIBGCC := $(shell $(CROSS_COMPILE)gcc -print-libgcc-file-name)
+LIBGCC_DIR := $(dir $(LIBGCC))
+LD_FLAGS := -lgcc -L$(LIBGCC_DIR)
 
 srcs := \
 	$(wildcard init/*.c) \
@@ -74,17 +76,19 @@ objs   += $(addprefix $(objdir)/,$(asms:.S=.o))
 objs   += $(objdir)/version.o
 # $(info objs=$(objs))
 deps   := $(objs:.o=.d)
-elf    := $(objdir)/luos.elf
+
+elf    := $(objdir)/luos
 
 .PHONY: default prepare
 
-default : $(elf)
+default : $(elf).elf
 
-$(elf) : $(objs) $(objdir)/linkSyms.o
+$(elf).elf : $(objs) $(objdir)/linkSyms.o
 	@echo Making $@...
-	@$(LD) -T arch/arm/mach-imx6/imx6ul.lds -o $(elf) $(objs) $(objdir)/linkSyms.o $(LD_FLAGS)
-	$(OBJCOPY) -O binary -S $(elf) $(objdir)/luos.bin
-	$(OBJDUMP) -Dszt $@ > $(objdir)/luos.S
+	@$(LD) -T arch/arm/mach-imx6/imx6ul.lds -o $(elf).elf $(objs) $(objdir)/linkSyms.o $(LD_FLAGS)
+	$(OBJCOPY) -O binary -S $(elf).elf $(elf).bin
+	imxdownload $(elf).bin $(elf).imx
+	$(OBJDUMP) -Dszt $@ > $(elf).S
 	@echo Making $@ done.
 
 prepare:
@@ -101,7 +105,6 @@ $(objdir)/linkSyms.o : $(objs)
 	@sh ./gen_linkSyms.sh $(objdir)/tmp.a > $(objdir)/linkSyms.c
 	@$(CC) $(CFLAGS) -c -o $@ $(objdir)/linkSyms.c
 	@-rm -f $(objdir)/tmp.a 
-	@-rm -f $(objdir)/version.c
 
 $(objdir)/%.o : %.c $(objdir)/%.d
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
@@ -122,7 +125,7 @@ $(objdir)/%.d : %.c
 	@sed -i -e "s/[^ ]\+\.o: /$(subst /,\/,$(@:.d=.o)): /g" $@
 
 clean:
-	@-rm -f $(objs) $(deps)
+	@-rm -f $(objs) $(deps) $(elf).bin $(elf).elf $(elf).S $(elf).imx
 
 sinclude $(deps)
 

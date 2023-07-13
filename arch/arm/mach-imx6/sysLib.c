@@ -27,6 +27,7 @@
 #include "bsp_int.h"
 #include "bsp_uart.h"
 #include "bsp_epittimer.h"
+#include "coreLib.h"
 
 #define _STR(x) #x
 #define TO_STR(x) _STR(x)
@@ -87,16 +88,17 @@ int sysHwInit(void)
     epit1_init(0, 66000000/2); 
     epit1_irqhandler_cb_setup(ledToggle);
 #else
-    // epit1_init(0, 66000000/1000); 
+    // epit1_init(0, 66000000/8); 
     // epit1_init(0, 66000000/2); 
-    // epit1_irqhandler_cb_setup(tickAnnounce);
+    epit1_irqhandler_cb_setup(tickAnnounce);
 #endif
 
-
+#if 1
 	uart_init();				/* 初始化串口，波特率115200 */
 	
     printf("Version: %s %s\n", TO_STR(BUILD_DATE), TO_STR(BUILD_TIME));
     printf("CBAR=%p\n", gic);
+#endif
     return 0;
 }
 
@@ -107,6 +109,26 @@ void cpuTaskContextSwitchTrig(register void* cur, register void* tcb_high)
 
 int cpuSysTicksConfig(uint32_t ticks)
 {
+    epit1_init(0, 66000000/(2 * ticks)); 
     return 0;
+}
+
+LOCAL cpureg_t cpuTimerRate = CONFIG_HZ;
+STATUS sysClkRateSet(int ticksPerSecond)
+{
+    if (ticksPerSecond <= 0) {
+        return ERROR;
+    }
+    cpuTimerRate = ticksPerSecond;
+#if 1
+    return  cpuSysTicksConfig(ticksPerSecond);
+#else
+    return 0;
+#endif
+}
+
+int sysClkRateGet(void)
+{
+    return cpuTimerRate;
 }
 

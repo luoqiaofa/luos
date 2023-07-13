@@ -11,6 +11,30 @@ Copyright © zuozhongkai Co., Ltd. 1998-2019. All rights reserved.
 		 V2.0 2019/1/4 左忠凯修改
 		 添加中断相关定义
 **************************************************************/
+.equ ARM_EXCEPT_RESET,              0x00
+.equ ARM_EXCEPT_UNDEF_INSTR,        0x01
+.equ ARM_EXCEPT_SWI,                0x02
+.equ ARM_EXCEPT_PREFETCH_ABORT,     0x03
+.equ ARM_EXCEPT_DATA_ABORT,         0x04
+.equ ARM_EXCEPT_ADDR_ABORT,         0x05
+.equ ARM_EXCEPT_IRQ,                0x06
+.equ ARM_EXCEPT_FIQ,                0x07
+
+.equ CPU_ARM_CONTROL_INT_DIS,       0xC0                     @ Disable both FIQ and IRQ.
+.equ CPU_ARM_CONTROL_FIQ_DIS,       0x40                     @ Disable FIQ.
+.equ CPU_ARM_CONTROL_IRQ_DIS,       0x80                     @ Disable IRQ.
+.equ CPU_ARM_CONTROL_THUMB,         0x20                     @ Set THUMB mode.
+.equ CPU_ARM_CONTROL_ARM,           0x00                     @ Set ARM mode.
+
+.equ CPU_ARM_MODE_MASK,             0x1F
+.equ CPU_ARM_MODE_USR,              0x10
+.equ CPU_ARM_MODE_FIQ,              0x11
+.equ CPU_ARM_MODE_IRQ,              0x12
+.equ CPU_ARM_MODE_SVC,              0x13
+.equ CPU_ARM_MODE_ABT,              0x17
+.equ CPU_ARM_MODE_UND,              0x1B
+.equ CPU_ARM_MODE_SYS,              0x1F
+
 
 .extern __osinfo__
 .extern coreIntEnter
@@ -123,7 +147,16 @@ Undefined_Handler:
 
 /* SVC中断 */
 SVC_Handler:
-	add pc, lr, #00
+    push   {r0-r12, lr}
+    mrs    r0, spsr
+    push   {r0}
+    cps    0x12
+    cps    0x13
+    ldmfd  sp!, {r0}
+    msr    SPSR_cxsf, r0
+    pop    {r0-r12, lr}
+    movs   pc, lr
+    /* b      SVC_Handler */
 
 /* 预取终止中断 */
 PrefAbort_Handler:
@@ -142,102 +175,59 @@ NotUsed_Handler:
 	bx r0
 
 /* IRQ中断！重点！！！！！ */
+@ Register Usage:  R0     Exception Type
+@                  R1     Exception's SPSR
+@                  R2     Return PC
+@                  R3     Exception's SP
 IRQ_Handler:
-	push {lr}					/* 保存lr地址 */
-	push {r0-r12}			/* 保存r0-r3，r12寄存器 */
+    sub  lr, lr, #4
+	push {r0-r12,lr}			/* 保存r0-r3，r12寄存器 */
+    mov  r0, #CPU_ARM_MODE_IRQ
+	mrs  r1, spsr				/* 读取spsr寄存器 */
+    push {r1}
+    mov  r2, lr
+    mov  r3, sp
 
-	mrs r0, spsr				/* 读取spsr寄存器 */
-	push {r0}					/* 保存spsr寄存器 */
-
-	/* mrc p15, 4, r1, c15, c0, 0 */ /* 从CP15的C0寄存器内的值到R1寄存器中
-								* 参考文档ARM Cortex-A(armV7)编程手册V4.0.pdf P49
-								* Cortex-A7 Technical ReferenceManua.pdf P68 P138
-								*/							
-    movw r1, #:lower16:0x00a00000 
-    movt r1, #:upper16:0x00a00000 
-	add r1, r1, #0X2000			/* GIC基地址加0X2000，也就是GIC的CPU接口端基地址 */
-	ldr r0, [r1, #0XC]			/* GIC的CPU接口端基地址加0X0C就是GICC_IAR寄存器，
-								 * GICC_IAR寄存器保存这当前发生中断的中断号，我们要根据
-								 * 这个中断号来绝对调用哪个中断服务函数
-								 */
-	push {r0, r1}				/* 保存r0,r1 */
-	cps #0x13					/* 进入SVC模式，允许其他中断再次进去 */
-	
-	push {r0-r1, lr}					/* 保存SVC模式的lr寄存器 */
+	msr  cpsr, #(CPU_ARM_CONTROL_INT_DIS | CPU_ARM_MODE_SVC)
+    clrex
+    push {r2}
+    push {r4-r12, lr}
+    ldmfd r3!, {r4-r8} /* r3-r0, spsr to svc sp */
+    push  {r4-r8}
 
     ldr r2, =coreIntEnter
     blx r2
 
-    pop {r0-r1}
 	ldr r2, =system_irqhandler	/* 加载C语言中断处理函数到r2寄存器中*/
 	blx r2						/* 运行C语言中断处理函数，带有一个参数，保存在R0寄存器中 */
 
     ldr r2, =coreIntExit
     blx r2
-
-	pop {lr}					/* 执行完C语言中断服务函数，lr出栈 */
-	cps #0x12					/* 进入IRQ模式 */
-	pop {r0, r1}				
-	str r0, [r1, #0X10]			/* 中断执行完成，写EOIR */
     
     movw r2, #:lower16:__osinfo__ 
     movt r2, #:upper16:__osinfo__ 
-    ldr  r0, [r2, #0]
-    ldr  r1, [r2, #4]
+    ldr  r0, [r2, #0] @currentTcb
+    ldr  r1, [r2, #4] @highestTcb
     cmp  r0, r1
     bne  IntContextSwitchSave
-    
+    pop  {r0}
+	msr  SPSR_cxsf, r0			/* 恢复spsr */
+    pop  {r0-r12,lr}
+    pop  {r0} /* discard pc */
+switch_to_irq_mode: 
+	msr  cpsr, #(CPU_ARM_CONTROL_INT_DIS | CPU_ARM_MODE_IRQ)
+    clrex
 	pop {r0}						
 	msr SPSR_cxsf, r0			/* 恢复spsr */
-	pop {r0-r12}			/* r0-r3,r12出栈 */
-	pop {lr}					/* lr出栈 */
-	subs pc, lr, #4				/* 将lr-4赋给pc */
+	pop {r0-r12}			    /* r0-r3,r12出栈 */
+	ldmfd sp!, {pc}^			/* lr出栈 */
 
 IntContextSwitchSave :
-    cpsid   if
-    cps     0x13
-    sub     r3, sp, #(16*4)     /* current svc sp */
-    mov     r1, r3              /* backup base bottom of stk to r1 */
-    cps     0x12
-    mov     r2, sp
-    ldmfd   r2!,{r4-r8}         /* save to stk->spsr, stk->r0-r3 */
-    add     r3, r3, #(5*4)
-    stmfd   r3!, {r4-r8}
-    ldmfd   r2!,{r4-r12}  /* r0-r12 */
-    add     r3, r1, #(14*4)
-    stmfd   r3!, {r4-r12}       /* save to stk->r4-r12 */
-    cps     0x13
-    add     r3, r1, #(15*4)       
-    stmfd   r3!, {lr}           /* save to stk->LR */
-    cps     0x12
-    ldmfd   r2!, {r4}           /* load lr to r4 */
-    subs    r4, r4, #4
-    add     r3, r1, #(16*4)
-    stmfd   r3!, {r4}           /* save to stk->PC */
-    str     r1, [r0, #0x10]     /* save currentTcb->stack */
-IntContextSwitchRestore:
-    movw    r2, #:lower16:__osinfo__
-    movt    r2, #:upper16:__osinfo__ 
-    ldr     r1, [r2, #4] @highestTcb
+    str     sp, [r0, #0x10]     /* save currentTcb->stack */
+IntContextSwitch:
     str     r1, [r2, #0] @ currentTcb = highestTcb
     ldr     r0, [r2, #0] @ reload currentTcb
-    ldr     r2, [r0, #0x10] /* load currentTcb->stack to r2 */
-    add     r1, r2, #(16*4)
-    mov     r3, sp
-    ldmfd   r2!, {r4-r8} /* r3sr, r0-r3 */
-    add     r3,  r3, #(5*4)
-    stmfd   r3!, {r4-r8}
-    ldmfd   r2!, {r4-r12} /* r4-r12 */
-    add     r3,  r3, #(14*4)
-    stmfd   r3!, {r4-r12}
-    cps     0x13
-    ldmfd   r2!, {lr} /* lr */
-    mov     sp, r1  
-    cps     0x12
-    ldmfd   r2!, {r4} /* pc */
-    add     r3,  r3, #(10*4)
-    stmfd   r3!, {r4}
-    str     r2, [r0, #0x10] /* update stk->stack */
+    ldr     sp, [r0, #0x10] /* load currentTcb->stack */
 
     push    {r0-r7}
     ldr     r0, =coreContextHook
@@ -246,8 +236,7 @@ IntContextSwitchRestore:
 
     ldmfd   sp!, {r0}
 	msr     SPSR_cxsf,r0
-    ldmfd   sp!, {r0-r12}
-    cpsie   if
+    ldmfd   sp!, {r0-r12, lr}
     ldmfd   sp!, {pc}^
 
 /* FIQ中断 */

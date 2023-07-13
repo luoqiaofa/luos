@@ -281,7 +281,9 @@ int puts(const char *str)
  */
 int getc(FILE *stream)
 { // @suppress("Symbol is not resolved")
-	while((UART1->USR2 & 0x1) == 0) {taskDelay(2);}/* 等待接收完成 */ // @suppress("Field cannot be resolved")
+	while((UART1->USR2 & 0x1) == 0) {
+		taskDelay(2);
+	}/* 等待接收完成 */ // @suppress("Field cannot be resolved")
 	return UART1->URXD;				/* 返回接收到的数据 */
 }
 

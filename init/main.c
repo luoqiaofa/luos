@@ -239,7 +239,6 @@ static void *usrRoot(void *arg)
 
     timer_add_test();
 
-    sysClkRateSet(CONFIG_HZ);
 
     flagInit(&semFlags, 0, 0);
 
@@ -257,9 +256,6 @@ static void *usrRoot(void *arg)
         }
     }
 #endif
-    while (1) {
-        taskDelay(2);
-    }
 
     msgQId = msgQCreate(3, 128, 0);
     if (NULL != msgQId) {
@@ -275,6 +271,9 @@ static void *usrRoot(void *arg)
 
     taskSpawn("tFlgGive", 17, 0, 1024,  taskFlagsGive, NULL);
     taskSpawn("tFlgTake", 18, 0, 1024,  taskFlagsTake, NULL);
+
+    sysClkRateSet(CONFIG_HZ);
+
     cnt = 0;
 	LED_Init();
     while(true) {
@@ -297,7 +296,11 @@ static void *usrRoot(void *arg)
  */
 int main (int argc, char *argv[])
 {
+#if 1
     luosStart(usrRoot, NULL, 1024*10);
+#else
+    sysHwInit();
+#endif
     while (true) {;}
     return 0;
 }                /* ----------  end of function main  ---------- */

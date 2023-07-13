@@ -21,11 +21,13 @@
 
 #include "os-cpu-types.h"
 
+
 extern int cpuIntLock(void);
 extern int cpuIntUnlock(int level);
 extern int intLock(void);
 extern int intUnlock(int level);
 extern void  cpuContextSwitch(void);
+int cpuSysTicksConfig(uint32_t ticks);
 extern void highestTaskStart(void); 
 void cpuTaskContextSwitchTrig(register void* cur, register void* tcb_high);
 

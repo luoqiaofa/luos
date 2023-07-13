@@ -221,6 +221,9 @@ void coreTrySchedule(void)
     if (taskLocked()) {
         return;
     }
+    if (__osinfo__.intNestedCnt > 1) {
+        return;
+    }
     level = intLock();
     if (interrupt_from_handler) {
         intUnlock(level);
@@ -230,13 +233,12 @@ void coreTrySchedule(void)
     if (0 == __osinfo__.intNestedCnt) {
         tickQWorkDoing();
     }
-
     tcb = highReadyTaskGet();
     if (currentTask() != tcb) {
         __osinfo__.highestTcb = tcb;
         if (0 == __osinfo__.intNestedCnt) {
             intUnlock(level);
-            cpuTaskContextSwitchTrig(currentTask(), tcb);
+            cpuTaskContextSwitchTrig(__osinfo__.currentTcb, tcb);
             return;
         }
     }
@@ -271,6 +273,11 @@ void coreContextHook(void)
 ULONG sysClkTickGet(void)
 {
     return osCoreInfo()->sysTicksCnt;
+}
+
+int sysClkTickSet(uint32_t ticks)
+{
+    return cpuSysTicksConfig(ticks);
 }
 
 BOOL coreScheduleIsEna(void)

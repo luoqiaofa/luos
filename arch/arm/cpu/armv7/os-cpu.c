@@ -22,6 +22,11 @@
 #include <stdio.h>
 #include "coreLib.h"
 
+#define  ARM_MODE_ARM           0x00000000u
+#define  ARM_MODE_THUMB         0x00000020u
+#define  ARM_SVC_MODE_THUMB    (0x00000013u + ARM_MODE_THUMB)
+#define  ARM_SVC_MODE_ARM      (0x00000013u + ARM_MODE_ARM)
+
 static inline cpureg_t cpsrGet(void)
 {
     cpureg_t val;
@@ -36,7 +41,7 @@ void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
 {
     STK_REGS *stk;
 
-    stk = (STK_REGS *)tcb->stack;
+    stk = (STK_REGS *)tcb->stack; // @suppress("Type cannot be resolved")
     stk--;
     stk->R0  = (uint32_t)tcb->param;
     stk->R1  = (uint32_t)tcb->stkLimit;
@@ -52,8 +57,12 @@ void cpuStackInit(LUOS_TCB *tcb, FUNCPTR exitRtn)
     stk->R11 = 0x11111111;
     stk->R12 = 0x12121212;
     stk->LR  = (uint32_t)exitRtn; /* R14 */
-    stk->PC  = (uint32_t)tcb->taskEntry; /* R15 */
-    stk->SPSR = 0x40000173; /* cpsrGet()*/;
+    stk->PC  = ((uint32_t)tcb->taskEntry) & (~1u); /* R15 */
+    if (((uint32_t)tcb->taskEntry) & 0x01) {
+        stk->SPSR = ARM_SVC_MODE_THUMB;
+    } else {
+        stk->SPSR = ARM_SVC_MODE_ARM;
+    }
     tcb->stack = stk;
 }
 
